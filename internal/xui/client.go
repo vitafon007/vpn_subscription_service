@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -448,8 +449,12 @@ func (c *Client) findViaTraffic(ctx context.Context, email string) (ClientInfo, 
 }
 
 func (c *Client) getJSON(ctx context.Context, path string, dest *apiResponse) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	fullURL := c.baseURL + path
+	log.Printf("xui request: GET %s", fullURL)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
+		log.Printf("xui result: GET %s build error: %v", fullURL, err)
 		return fmt.Errorf("%w: build request: %v", ErrUnavailable, err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiToken)
@@ -457,32 +462,40 @@ func (c *Client) getJSON(ctx context.Context, path string, dest *apiResponse) er
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
+		log.Printf("xui result: GET %s transport error: %v", fullURL, err)
 		return fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
+		log.Printf("xui result: GET %s read error: %v", fullURL, err)
 		return fmt.Errorf("%w: read: %v", ErrUnavailable, err)
 	}
 
 	// Не JSON / HTML 404 панели (часто неверный XUI_BASE_URL или webBasePath).
 	ct := res.Header.Get("Content-Type")
 	if res.StatusCode == http.StatusNotFound && !strings.Contains(ct, "json") {
+		log.Printf("xui result: GET %s status=%d ct=%q body=%q", fullURL, res.StatusCode, ct, truncate(body, 200))
 		return fmt.Errorf("%w: http 404 (проверьте XUI_BASE_URL и webBasePath панели)", ErrUnavailable)
 	}
 	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		log.Printf("xui result: GET %s status=%d (auth)", fullURL, res.StatusCode)
 		return fmt.Errorf("%w: http %d (проверьте XUI_API_TOKEN)", ErrUnavailable, res.StatusCode)
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		log.Printf("xui result: GET %s status=%d body=%q", fullURL, res.StatusCode, truncate(body, 200))
 		if res.StatusCode == http.StatusNotFound {
 			return ErrNotFound
 		}
 		return fmt.Errorf("%w: http %d: %s", ErrUnavailable, res.StatusCode, truncate(body, 200))
 	}
 	if err := json.Unmarshal(body, dest); err != nil {
+		log.Printf("xui result: GET %s status=%d json error: %v body=%q", fullURL, res.StatusCode, err, truncate(body, 200))
 		return fmt.Errorf("%w: json: %v", ErrUnavailable, err)
 	}
+	log.Printf("xui result: GET %s status=%d success=%v msg=%q obj=%q",
+		fullURL, res.StatusCode, dest.Success, dest.Msg, truncate(dest.Obj, 300))
 	return nil
 }
 
