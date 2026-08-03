@@ -67,15 +67,21 @@ func envInt(key string, fallback int) int {
 
 func envBool(key string, fallback bool) bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	// Убираем кавычки из .env вида "true" / 'true'.
+	v = strings.Trim(v, `"'`)
 	if v == "" {
 		return fallback
 	}
-	switch v {
-	case "1", "true", "yes", "y", "on":
-		return true
-	case "0", "false", "no", "n", "off":
-		return false
-	default:
-		return fallback
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		switch v {
+		case "yes", "y", "on":
+			return true
+		case "no", "n", "off":
+			return false
+		default:
+			return fallback
+		}
 	}
+	return b
 }

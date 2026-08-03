@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -38,19 +39,53 @@ type Client struct {
 // New создаёт клиент 3x-ui. baseURL без завершающего слэша
 // (при кастомном webBasePath панели включайте его в URL, например https://host:6217/babaduk).
 // insecureSkipVerify нужен при HTTPS на IP (сертификат на домен не совпадает с хостом).
+// Если insecureSkipVerify=false, но host в URL — IP, skip включается автоматически для https.
 func New(baseURL, apiToken string, insecureSkipVerify bool) *Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	if insecureSkipVerify {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // опционально для docker IP→HTTPS
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	skip := insecureSkipVerify || httpsToIP(baseURL)
+	if skip && !insecureSkipVerify {
+		log.Printf("xui: auto InsecureSkipVerify=true (HTTPS к IP-адресу)")
 	}
+	log.Printf("xui: client base=%q insecure_skip_verify=%v", baseURL, skip)
+
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: skip, //nolint:gosec // HTTPS к docker gateway IP / явный флаг
+			MinVersion:         tls.VersionTLS12,
+		},
+	}
+
 	return &Client{
-		baseURL:  strings.TrimRight(strings.TrimSpace(baseURL), "/"),
+		baseURL:  baseURL,
 		apiToken: strings.TrimSpace(apiToken),
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,
 			Transport: transport,
 		},
 	}
+}
+
+// httpsToIP сообщает, что URL — https://<ip>/...
+func httpsToIP(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	if !strings.EqualFold(u.Scheme, "https") {
+		return false
+	}
+	host := u.Hostname()
+	return net.ParseIP(host) != nil
 }
 
 // Configured сообщает, можно ли выполнять запросы к панели.
