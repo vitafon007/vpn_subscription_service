@@ -1,17 +1,307 @@
 {
-    "schemes": [
-        "https"
-    ],
     "swagger": "2.0",
     "info": {
-        "description": "Сервис выдачи VPN-подписок (v1 scaffold: health/ready).",
+        "description": "Сервис выдачи VPN-подписок с интеграцией 3x-ui (bind + title/announce overlay).",
         "title": "VPN Subscription Service API",
         "contact": {},
         "version": "1.0"
     },
-    "host": "chistotel.webtm.ru",
-    "basePath": "/babasub",
+    "basePath": "/",
     "paths": {
+        "/api/v1/admin/users": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Ищет клиента в панели по email (login) и выдаёт subscription URL. Клиенты в 3x-ui не создаются.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Привязать клиента 3x-ui",
+                "parameters": [
+                    {
+                        "description": "Логин = email в 3x-ui",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.BindUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.BindUserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{login}/announces": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает все анонсы пользователя.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Список анонсов",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "login",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.AnnounceListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Добавляет анонс в round-robin очередь пользователя.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Добавить анонс",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "login",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Текст анонса",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.AddAnnounceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.AnnounceItem"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{login}/announces/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаляет анонс пользователя по идентификатору.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Удалить анонс",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "login",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID анонса",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{login}/title": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Задаёт Profile-Title для пользователя. Для login=default пользователь создаётся при необходимости.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Установить заголовок подписки",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Логин пользователя",
+                        "name": "login",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Заголовок",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.SetTitleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/health": {
             "get": {
                 "description": "Проверка, что процесс жив (без обращения к БД)",
@@ -57,9 +347,136 @@
                     }
                 }
             }
+        },
+        "/api/v1/sub/{token}": {
+            "get": {
+                "description": "Возвращает base64-список ссылок и заголовки Profile-Title / Announce / Subscription-Userinfo.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "subscription"
+                ],
+                "summary": "Получить подписку по токену",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Токен подписки",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "model.AddAnnounceRequest": {
+            "type": "object",
+            "required": [
+                "body"
+            ],
+            "properties": {
+                "body": {
+                    "description": "Body — текст анонса.",
+                    "type": "string",
+                    "example": "Обновление серверов"
+                }
+            }
+        },
+        "model.AnnounceItem": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "description": "Body — текст анонса.",
+                    "type": "string",
+                    "example": "Обновление серверов"
+                },
+                "created_at": {
+                    "description": "CreatedAt — время создания.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID — идентификатор анонса.",
+                    "type": "integer",
+                    "example": 1
+                },
+                "last_shown_at": {
+                    "description": "LastShownAt — время последней выдачи (null если ещё не показывали).",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "UserID — идентификатор пользователя.",
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "model.AnnounceListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "Items — анонсы пользователя.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.AnnounceItem"
+                    }
+                }
+            }
+        },
+        "model.BindUserRequest": {
+            "type": "object",
+            "required": [
+                "login"
+            ],
+            "properties": {
+                "login": {
+                    "description": "Login — email клиента в панели 3x-ui.",
+                    "type": "string",
+                    "example": "user@example.com"
+                }
+            }
+        },
+        "model.BindUserResponse": {
+            "type": "object",
+            "properties": {
+                "login": {
+                    "description": "Login — логин пользователя.",
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "subscription_url": {
+                    "description": "SubscriptionURL — полный URL подписки.",
+                    "type": "string",
+                    "example": "http://127.0.0.1:23452/api/v1/sub/a1b2c3"
+                },
+                "token": {
+                    "description": "Token — токен публичной подписки.",
+                    "type": "string",
+                    "example": "a1b2c3…"
+                }
+            }
+        },
         "model.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -80,6 +497,16 @@
                 }
             }
         },
+        "model.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Message — текст результата.",
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
         "model.ReadyResponse": {
             "type": "object",
             "properties": {
@@ -89,6 +516,27 @@
                     "example": "ready"
                 }
             }
+        },
+        "model.SetTitleRequest": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "title": {
+                    "description": "Title — текст Profile-Title.",
+                    "type": "string",
+                    "example": "My VPN"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Bearer ADMIN_TOKEN",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }

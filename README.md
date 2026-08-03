@@ -1,30 +1,54 @@
 # VPN Subscription Service
 
-Сервис подписок VPN (v1 scaffold). Домен: `https://chistotel.webtm.ru`, префикс `/babasub`.
+Сервис выдачи VPN-подписок с интеграцией **3x-ui**: привязка существующих клиентов панели, публичный URL подписки и оверлей `Profile-Title` / `Announce` из Postgres.
 
-В v1 реализованы только health/ready, слойная структура, Docker и CI/CD. **Тестов нет.**
+Клиенты в 3x-ui **не создаются** — только bind по email (логин = email в панели).
 
 ## Архитектура
-
-Строгое разделение слоёв:
 
 | Слой | Путь | Ответственность |
 |------|------|-----------------|
 | handler | `internal/handler` | HTTP (Gin), без доступа к БД |
-| service | `internal/service` | бизнес-логика, без знания Gin |
-| dao | `internal/dao` | доступ к данным, без HTTP |
-| db | `internal/db` | пул pgx |
-| model | `internal/model` | DTO ответов |
-| config / server | `internal/config`, `internal/server` | конфиг и сборка роутера |
+| service | `internal/service` | бизнес-логика |
+| dao | `internal/dao` | Postgres |
+| xui | `internal/xui` | HTTP-клиент 3x-ui |
+| db | `internal/db` | пул pgx + миграции |
+| model | `internal/model` | DTO |
+| middleware | `internal/middleware` | RequireAdmin |
+| config / server | `internal/config`, `internal/server` | конфиг и роутер |
 
 ## API
 
-Базовый путь: `/babasub/api/v1`
+Базовый путь: `/api/v1`
 
-- `GET /health` — liveness `{ "status": "ok" }`
-- `GET /ready` — readiness (ping Postgres)
+### Публичные
 
-Swagger UI: https://chistotel.webtm.ru/babasub/swagger/index.html
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/health` | liveness |
+| GET | `/ready` | readiness (Postgres) |
+| GET | `/sub/:token` | подписка: body = base64 ссылок; заголовки Profile-Title, Announce, Subscription-Userinfo |
+
+### Админ (`Authorization: Bearer ADMIN_TOKEN`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/admin/users` | bind: `{ "login": "<email_3xui>" }` → `{ login, token, subscription_url }` |
+| PUT | `/admin/users/:login/title` | заголовок: `{ "title": "..." }` |
+| POST | `/admin/users/:login/announces` | добавить анонс: `{ "body": "..." }` |
+| GET | `/admin/users/:login/announces` | список анонсов |
+| DELETE | `/admin/users/:login/announces/:id` | удалить анонс |
+
+Swagger UI: http://127.0.0.1:23452/swagger/index.html
+
+### Title / Announce / default
+
+- Title: свой → иначе у пользователя `login=default` → пусто.
+- Announce: round-robin своих (`ORDER BY last_shown_at NULLS FIRST`, затем `last_shown_at = now()`) → иначе round-robin `default` → пусто.
+- Пользователь `default` сидится миграцией; у него `sub_token = NULL` (подписаться как default нельзя).
+- `POST /admin/users` с `login=default` — **отклонён**; title/announces для `default` работают отдельно.
+
+Повторный bind того же логина обновляет `xui_sub_id` из панели и **сохраняет** прежний `sub_token`.
 
 ## Переменные окружения
 
@@ -33,17 +57,41 @@ Swagger UI: https://chistotel.webtm.ru/babasub/swagger/index.html
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
 | `PORT` | `23452` | порт HTTP |
-| `DATABASE_URL` | postgres://… | строка подключения Postgres |
+| `DATABASE_URL` | postgres://… | Postgres |
 | `GIN_MODE` | `debug` | режим Gin |
-| `BASE_PATH` | `/babasub` | префикс маршрутов |
-| `IMAGE` | `ghcr.io/chistotel/vpn_subscription_service:latest` | образ для compose |
+| `ADMIN_TOKEN` | *(пусто)* | Bearer для `/admin/*`; пустой = deny-all |
+| `XUI_BASE_URL` | *(пусто)* | база 3x-ui, напр. `http://3xui_app:2053` |
+| `XUI_API_TOKEN` | *(пусто)* | Bearer API-токен панели |
+| `PUBLIC_BASE_URL` | `http://127.0.0.1:23452` | база для `subscription_url` |
+| `XUI_DOCKER_NETWORK` | `3xui_default` | внешняя docker-сеть 3x-ui |
+| `IMAGE` | `vpn_subscription_service:latest` | образ compose |
 
-## Локальный запуск
+Если `XUI_*` не заданы, `/health` и `/ready` работают, а bind/sub отвечают **503**.
 
-### Docker Compose
+## Docker Compose и сеть с 3x-ui
+
+Сервис `app` подключён к сети `default` (свой Postgres) и к внешней сети `xui_net`.
+
+Узнать сеть контейнера 3x-ui:
+
+```powershell
+docker inspect 3xui_app --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{println}}{{end}}'
+```
+
+Затем в `.env` / окружении:
+
+```powershell
+$env:XUI_DOCKER_NETWORK = "имя_сети_из_inspect"
+$env:XUI_BASE_URL = "http://3xui_app:2053"
+$env:XUI_API_TOKEN = "токен_из_панели"
+$env:ADMIN_TOKEN = "секрет"
+```
+
+Запуск:
 
 ```powershell
 Copy-Item .env.example .env
+# отредактируйте .env
 Set-Location deploy
 docker compose up --build -d
 ```
@@ -51,41 +99,40 @@ docker compose up --build -d
 Проверка:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:23452/babasub/api/v1/health
+Invoke-RestMethod http://127.0.0.1:23452/api/v1/health
 ```
 
-### Go без Docker
+Пример bind:
 
-Нужен запущенный Postgres и `DATABASE_URL`.
+```powershell
+$headers = @{ Authorization = "Bearer $env:ADMIN_TOKEN"; "Content-Type" = "application/json" }
+Invoke-RestMethod -Method POST -Uri http://127.0.0.1:23452/api/v1/admin/users `
+  -Headers $headers -Body '{"login":"user@example.com"}'
+```
+
+## Локальный запуск без Docker
+
+Нужен Postgres и переменные окружения.
 
 ```powershell
 go mod tidy
 go run ./cmd/server
 ```
 
-Swagger локально (если `GIN_MODE=debug` и схемы в docs с host продакшена):  
-http://127.0.0.1:23452/babasub/swagger/index.html
+Миграции (`migrations/*.sql`) применяются автоматически при старте.
+
+Swagger: http://127.0.0.1:23452/swagger/index.html
 
 ## Nginx
 
-Пример проксирования `/babasub/` — `deploy/nginx-babasub.conf.example`:
-
-```nginx
-location /babasub/ {
-    proxy_pass http://127.0.0.1:23452/babasub/;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
+Пример проксирования — `deploy/nginx.conf.example`. Production-домен в этом репозитории не задаётся — укажите свой в nginx и `PUBLIC_BASE_URL`.
 
 ## CI/CD
 
 Workflow `.github/workflows/ci-cd.yml` при push в `main`:
 
 1. `go build` (**без тестов**)
-2. Сборка и push образа в GHCR: `ghcr.io/<owner>/vpn_subscription_service:<sha>` и `:latest`
+2. Сборка и push образа в GHCR
 3. Деплой по SSH: `docker compose pull && up -d`
 
 ### Secrets репозитория
@@ -95,16 +142,8 @@ Workflow `.github/workflows/ci-cd.yml` при push в `main`:
 | `SSH_HOST` | хост сервера |
 | `SSH_USER` | пользователь SSH |
 | `SSH_PRIVATE_KEY` | приватный ключ |
-| `SSH_PORT` | порт SSH (опционально, по умолчанию 22) |
-| `DEPLOY_PATH` | каталог с `docker-compose.yml` на сервере |
-
-Для публикации пакетов в workflow задано `permissions.packages: write` (используется `GITHUB_TOKEN`).
-
-## Roadmap
-
-- `GET /babasub/api/v1/sub/:token` — выдача конфигурации подписки по токену
-- Миграции схемы БД в `migrations/`
-- Генерация VPN-ссылок (не в v1)
+| `SSH_PORT` | порт SSH (опционально) |
+| `DEPLOY_PATH` | каталог с `docker-compose.yml` |
 
 ## Модуль
 

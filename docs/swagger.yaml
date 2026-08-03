@@ -1,5 +1,67 @@
-basePath: /babasub
+basePath: /
 definitions:
+  model.AddAnnounceRequest:
+    properties:
+      body:
+        description: Body — текст анонса.
+        example: Обновление серверов
+        type: string
+    required:
+    - body
+    type: object
+  model.AnnounceItem:
+    properties:
+      body:
+        description: Body — текст анонса.
+        example: Обновление серверов
+        type: string
+      created_at:
+        description: CreatedAt — время создания.
+        type: string
+      id:
+        description: ID — идентификатор анонса.
+        example: 1
+        type: integer
+      last_shown_at:
+        description: LastShownAt — время последней выдачи (null если ещё не показывали).
+        type: string
+      user_id:
+        description: UserID — идентификатор пользователя.
+        example: 1
+        type: integer
+    type: object
+  model.AnnounceListResponse:
+    properties:
+      items:
+        description: Items — анонсы пользователя.
+        items:
+          $ref: '#/definitions/model.AnnounceItem'
+        type: array
+    type: object
+  model.BindUserRequest:
+    properties:
+      login:
+        description: Login — email клиента в панели 3x-ui.
+        example: user@example.com
+        type: string
+    required:
+    - login
+    type: object
+  model.BindUserResponse:
+    properties:
+      login:
+        description: Login — логин пользователя.
+        example: user@example.com
+        type: string
+      subscription_url:
+        description: SubscriptionURL — полный URL подписки.
+        example: http://127.0.0.1:23452/api/v1/sub/a1b2c3
+        type: string
+      token:
+        description: Token — токен публичной подписки.
+        example: a1b2c3…
+        type: string
+    type: object
   model.ErrorResponse:
     properties:
       error:
@@ -14,6 +76,13 @@ definitions:
         example: ok
         type: string
     type: object
+  model.MessageResponse:
+    properties:
+      message:
+        description: Message — текст результата.
+        example: ok
+        type: string
+    type: object
   model.ReadyResponse:
     properties:
       status:
@@ -21,13 +90,212 @@ definitions:
         example: ready
         type: string
     type: object
-host: chistotel.webtm.ru
+  model.SetTitleRequest:
+    properties:
+      title:
+        description: Title — текст Profile-Title.
+        example: My VPN
+        type: string
+    required:
+    - title
+    type: object
 info:
   contact: {}
-  description: 'Сервис выдачи VPN-подписок (v1 scaffold: health/ready).'
+  description: Сервис выдачи VPN-подписок с интеграцией 3x-ui (bind + title/announce
+    overlay).
   title: VPN Subscription Service API
   version: "1.0"
 paths:
+  /api/v1/admin/users:
+    post:
+      consumes:
+      - application/json
+      description: Ищет клиента в панели по email (login) и выдаёт subscription URL.
+        Клиенты в 3x-ui не создаются.
+      parameters:
+      - description: Логин = email в 3x-ui
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.BindUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.BindUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Привязать клиента 3x-ui
+      tags:
+      - admin
+  /api/v1/admin/users/{login}/announces:
+    get:
+      description: Возвращает все анонсы пользователя.
+      parameters:
+      - description: Логин пользователя
+        in: path
+        name: login
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AnnounceListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Список анонсов
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: Добавляет анонс в round-robin очередь пользователя.
+      parameters:
+      - description: Логин пользователя
+        in: path
+        name: login
+        required: true
+        type: string
+      - description: Текст анонса
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.AddAnnounceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AnnounceItem'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Добавить анонс
+      tags:
+      - admin
+  /api/v1/admin/users/{login}/announces/{id}:
+    delete:
+      description: Удаляет анонс пользователя по идентификатору.
+      parameters:
+      - description: Логин пользователя
+        in: path
+        name: login
+        required: true
+        type: string
+      - description: ID анонса
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Удалить анонс
+      tags:
+      - admin
+  /api/v1/admin/users/{login}/title:
+    put:
+      consumes:
+      - application/json
+      description: Задаёт Profile-Title для пользователя. Для login=default пользователь
+        создаётся при необходимости.
+      parameters:
+      - description: Логин пользователя
+        in: path
+        name: login
+        required: true
+        type: string
+      - description: Заголовок
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.SetTitleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Установить заголовок подписки
+      tags:
+      - admin
   /api/v1/health:
     get:
       description: Проверка, что процесс жив (без обращения к БД)
@@ -58,6 +326,38 @@ paths:
       summary: Readiness probe
       tags:
       - health
-schemes:
-- https
+  /api/v1/sub/{token}:
+    get:
+      description: Возвращает base64-список ссылок и заголовки Profile-Title / Announce
+        / Subscription-Userinfo.
+      parameters:
+      - description: Токен подписки
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Получить подписку по токену
+      tags:
+      - subscription
+securityDefinitions:
+  BearerAuth:
+    description: Bearer ADMIN_TOKEN
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

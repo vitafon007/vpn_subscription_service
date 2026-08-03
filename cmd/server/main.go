@@ -2,10 +2,12 @@
 //
 // @title           VPN Subscription Service API
 // @version         1.0
-// @description     Сервис выдачи VPN-подписок (v1 scaffold: health/ready).
-// @host            chistotel.webtm.ru
-// @BasePath        /babasub
-// @schemes         https
+// @description     Сервис выдачи VPN-подписок с интеграцией 3x-ui (bind + title/announce overlay).
+// @BasePath        /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Bearer ADMIN_TOKEN
 package main
 
 import (
@@ -26,7 +28,14 @@ import (
 func main() {
 	cfg := config.Load()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if cfg.AdminToken == "" {
+		log.Printf("предупреждение: ADMIN_TOKEN пуст — админ-API отклонит все запросы")
+	}
+	if !cfg.XUIConfigured() {
+		log.Printf("предупреждение: XUI_BASE_URL/XUI_API_TOKEN не заданы — bind/sub вернут 503")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
@@ -34,6 +43,10 @@ func main() {
 		log.Fatalf("подключение к БД: %v", err)
 	}
 	defer db.Close(pool)
+
+	if err := db.Migrate(ctx, pool); err != nil {
+		log.Fatalf("миграции: %v", err)
+	}
 
 	router := server.NewRouter(cfg, pool)
 
@@ -45,7 +58,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("сервер слушает %s (base path %s)", addr, cfg.BasePath)
+		log.Printf("сервер слушает %s", addr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("ошибка сервера: %v", err)
 		}
