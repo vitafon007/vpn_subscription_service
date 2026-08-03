@@ -1,4 +1,4 @@
-// Package server собирает HTTP-роутер и связывая слои приложения.
+// Package server собирает HTTP-роутер и связывает слои приложения.
 package server
 
 import (
