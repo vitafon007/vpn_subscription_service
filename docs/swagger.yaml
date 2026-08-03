@@ -1,0 +1,63 @@
+basePath: /babasub
+definitions:
+  model.ErrorResponse:
+    properties:
+      error:
+        description: Error — текст ошибки.
+        example: database unavailable
+        type: string
+    type: object
+  model.HealthResponse:
+    properties:
+      status:
+        description: Status — статус сервиса (ok).
+        example: ok
+        type: string
+    type: object
+  model.ReadyResponse:
+    properties:
+      status:
+        description: Status — статус готовности (ready).
+        example: ready
+        type: string
+    type: object
+host: chistotel.webtm.ru
+info:
+  contact: {}
+  description: 'Сервис выдачи VPN-подписок (v1 scaffold: health/ready).'
+  title: VPN Subscription Service API
+  version: "1.0"
+paths:
+  /api/v1/health:
+    get:
+      description: Проверка, что процесс жив (без обращения к БД)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.HealthResponse'
+      summary: Liveness probe
+      tags:
+      - health
+  /api/v1/ready:
+    get:
+      description: Проверка готовности сервиса, включая Postgres
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ReadyResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Readiness probe
+      tags:
+      - health
+schemes:
+- https
+swagger: "2.0"

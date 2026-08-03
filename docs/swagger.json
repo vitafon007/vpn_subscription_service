@@ -1,0 +1,94 @@
+{
+    "schemes": [
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Сервис выдачи VPN-подписок (v1 scaffold: health/ready).",
+        "title": "VPN Subscription Service API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "chistotel.webtm.ru",
+    "basePath": "/babasub",
+    "paths": {
+        "/api/v1/health": {
+            "get": {
+                "description": "Проверка, что процесс жив (без обращения к БД)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Liveness probe",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ready": {
+            "get": {
+                "description": "Проверка готовности сервиса, включая Postgres",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Readiness probe",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ReadyResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "model.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error — текст ошибки.",
+                    "type": "string",
+                    "example": "database unavailable"
+                }
+            }
+        },
+        "model.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "description": "Status — статус сервиса (ok).",
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "model.ReadyResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "description": "Status — статус готовности (ready).",
+                    "type": "string",
+                    "example": "ready"
+                }
+            }
+        }
+    }
+}

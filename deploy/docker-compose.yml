@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vpn
+      POSTGRES_PASSWORD: vpn
+      POSTGRES_DB: vpn_sub
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vpn -d vpn_sub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    image: ${IMAGE:-ghcr.io/chistotel/vpn_subscription_service:latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "23452:23452"
+    environment:
+      PORT: "23452"
+      DATABASE_URL: postgres://vpn:vpn@postgres:5432/vpn_sub?sslmode=disable
+      GIN_MODE: release
+      BASE_PATH: /babasub
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:23452/babasub/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
