@@ -20,13 +20,22 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/chistotel/vpn_subscription_service/internal/buildinfo"
 	"github.com/chistotel/vpn_subscription_service/internal/config"
 	"github.com/chistotel/vpn_subscription_service/internal/db"
 	"github.com/chistotel/vpn_subscription_service/internal/server"
 )
 
 func main() {
+	log.SetOutput(os.Stdout)
+	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
+	log.SetPrefix("[vpn-sub] ")
+
+	log.Printf("starting %s", buildinfo.Summary())
+
 	cfg := config.Load()
+	log.Printf("config: port=%d gin=%s xui_base=%q xui_configured=%v insecure_skip_verify=%v public_base=%q",
+		cfg.Port, cfg.GinMode, cfg.XUIBaseURL, cfg.XUIConfigured(), cfg.XUIInsecureSkipVerify, cfg.PublicBaseURL)
 
 	if cfg.AdminToken == "" {
 		log.Printf("предупреждение: ADMIN_TOKEN пуст — админ-API отклонит все запросы")
@@ -43,10 +52,12 @@ func main() {
 		log.Fatalf("подключение к БД: %v", err)
 	}
 	defer db.Close(pool)
+	log.Printf("postgres: connected")
 
 	if err := db.Migrate(ctx, pool); err != nil {
 		log.Fatalf("миграции: %v", err)
 	}
+	log.Printf("postgres: migrations applied")
 
 	router := server.NewRouter(cfg, pool)
 
@@ -58,7 +69,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("сервер слушает %s", addr)
+		log.Printf("http: listening on %s", addr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("ошибка сервера: %v", err)
 		}
@@ -68,10 +79,12 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 
+	log.Printf("shutting down...")
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Printf("graceful shutdown: %v", err)
 	}
+	log.Printf("stopped")
 }
