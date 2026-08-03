@@ -21,6 +21,8 @@ type Config struct {
 	XUIBaseURL string
 	// XUIAPIToken — Bearer-токен API 3x-ui.
 	XUIAPIToken string
+	// XUIInsecureSkipVerify — не проверять TLS-сертификат панели (HTTPS на IP).
+	XUIInsecureSkipVerify bool
 	// PublicBaseURL — публичный базовый URL сервиса для subscription_url.
 	PublicBaseURL string
 }
@@ -28,13 +30,14 @@ type Config struct {
 // Load читает конфигурацию из переменных окружения и применяет значения по умолчанию.
 func Load() Config {
 	return Config{
-		Port:          envInt("PORT", 23452),
-		DatabaseURL:   env("DATABASE_URL", "postgres://vpn:vpn@localhost:5432/vpn_sub?sslmode=disable"),
-		GinMode:       env("GIN_MODE", "debug"),
-		AdminToken:    env("ADMIN_TOKEN", ""),
-		XUIBaseURL:    strings.TrimRight(env("XUI_BASE_URL", ""), "/"),
-		XUIAPIToken:   env("XUI_API_TOKEN", ""),
-		PublicBaseURL: strings.TrimRight(env("PUBLIC_BASE_URL", "http://127.0.0.1:23452"), "/"),
+		Port:                  envInt("PORT", 23452),
+		DatabaseURL:           env("DATABASE_URL", "postgres://vpn:vpn@localhost:5432/vpn_sub?sslmode=disable"),
+		GinMode:               env("GIN_MODE", "debug"),
+		AdminToken:            env("ADMIN_TOKEN", ""),
+		XUIBaseURL:            strings.TrimRight(env("XUI_BASE_URL", ""), "/"),
+		XUIAPIToken:           env("XUI_API_TOKEN", ""),
+		XUIInsecureSkipVerify: envBool("XUI_INSECURE_SKIP_VERIFY", false),
+		PublicBaseURL:         strings.TrimRight(env("PUBLIC_BASE_URL", "http://127.0.0.1:23452"), "/"),
 	}
 }
 
@@ -60,4 +63,19 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func envBool(key string, fallback bool) bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if v == "" {
+		return fallback
+	}
+	switch v {
+	case "1", "true", "yes", "y", "on":
+		return true
+	case "0", "false", "no", "n", "off":
+		return false
+	default:
+		return fallback
+	}
 }

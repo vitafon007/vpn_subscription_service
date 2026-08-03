@@ -33,7 +33,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool) *gin.Engine {
 	userDAO := dao.NewUserDAO(pool)
 	titleDAO := dao.NewTitleDAO(pool)
 	announceDAO := dao.NewAnnounceDAO(pool)
-	xuiClient := xui.New(cfg.XUIBaseURL, cfg.XUIAPIToken)
+	xuiClient := xui.New(cfg.XUIBaseURL, cfg.XUIAPIToken, cfg.XUIInsecureSkipVerify)
 
 	adminService := service.NewAdminUserService(userDAO, titleDAO, announceDAO, xuiClient, cfg.PublicBaseURL)
 	subService := service.NewSubscriptionService(userDAO, titleDAO, announceDAO, xuiClient)

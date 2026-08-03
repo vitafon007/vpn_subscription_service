@@ -30,6 +30,7 @@ services:
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       XUI_BASE_URL: ${XUI_BASE_URL:-http://3xui_app:2053}
       XUI_API_TOKEN: ${XUI_API_TOKEN:-}
+      XUI_INSECURE_SKIP_VERIFY: ${XUI_INSECURE_SKIP_VERIFY:-true}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:23452}
     depends_on:
       postgres:

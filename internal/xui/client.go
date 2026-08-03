@@ -4,6 +4,7 @@ package xui
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,13 +35,19 @@ type Client struct {
 }
 
 // New создаёт клиент 3x-ui. baseURL без завершающего слэша
-// (при кастомном webBasePath панели включайте его в URL, например http://3xui_app:2053/secret).
-func New(baseURL, apiToken string) *Client {
+// (при кастомном webBasePath панели включайте его в URL, например https://host:6217/babaduk).
+// insecureSkipVerify нужен при HTTPS на IP (сертификат на домен не совпадает с хостом).
+func New(baseURL, apiToken string, insecureSkipVerify bool) *Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if insecureSkipVerify {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // опционально для docker IP→HTTPS
+	}
 	return &Client{
 		baseURL:  strings.TrimRight(strings.TrimSpace(baseURL), "/"),
 		apiToken: strings.TrimSpace(apiToken),
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:   30 * time.Second,
+			Transport: transport,
 		},
 	}
 }
