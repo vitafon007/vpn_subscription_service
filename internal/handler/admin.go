@@ -158,9 +158,13 @@ func writeAdminError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrInvalidLogin), errors.Is(err, service.ErrCannotBindDefault):
 		c.JSON(http.StatusBadRequest, model.ErrorResponse{Error: err.Error()})
 	case errors.Is(err, service.ErrNotFound):
-		c.JSON(http.StatusNotFound, model.ErrorResponse{Error: "not found"})
+		c.JSON(http.StatusNotFound, model.ErrorResponse{Error: "xui client not found: login must exactly match Email in 3x-ui"})
+	case errors.Is(err, service.ErrNoSubID):
+		c.JSON(http.StatusConflict, model.ErrorResponse{Error: "xui client found but subId is empty; set Subscription ID in panel"})
 	case errors.Is(err, service.ErrXUINotConfigured):
 		c.JSON(http.StatusServiceUnavailable, model.ErrorResponse{Error: "xui not configured"})
+	case errors.Is(err, service.ErrXUIUnavailable):
+		c.JSON(http.StatusServiceUnavailable, model.ErrorResponse{Error: "xui unavailable: check XUI_BASE_URL (incl. webBasePath) and XUI_API_TOKEN"})
 	default:
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse{Error: "internal error"})
 	}

@@ -19,6 +19,10 @@ var (
 	ErrNotFound = errors.New("service: not found")
 	// ErrXUINotConfigured — 3x-ui не сконфигурирован.
 	ErrXUINotConfigured = errors.New("service: xui not configured")
+	// ErrXUIUnavailable — панель недоступна или неверный base URL/токен.
+	ErrXUIUnavailable = errors.New("service: xui unavailable")
+	// ErrNoSubID — клиент в панели есть, но subId пуст.
+	ErrNoSubID = errors.New("service: xui client has empty subId")
 	// ErrCannotBindDefault — нельзя привязать служебного пользователя default.
 	ErrCannotBindDefault = errors.New("service: cannot bind default user")
 	// ErrInvalidLogin — пустой или некорректный логин.
@@ -70,8 +74,14 @@ func (s *AdminUserService) Bind(ctx context.Context, login string) (model.BindUs
 		if errors.Is(err, xui.ErrNotFound) {
 			return model.BindUserResponse{}, ErrNotFound
 		}
+		if errors.Is(err, xui.ErrNoSubID) {
+			return model.BindUserResponse{}, ErrNoSubID
+		}
 		if errors.Is(err, xui.ErrNotConfigured) {
 			return model.BindUserResponse{}, ErrXUINotConfigured
+		}
+		if errors.Is(err, xui.ErrUnavailable) {
+			return model.BindUserResponse{}, fmt.Errorf("%w: %v", ErrXUIUnavailable, err)
 		}
 		return model.BindUserResponse{}, fmt.Errorf("bind find xui: %w", err)
 	}

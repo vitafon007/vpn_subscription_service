@@ -20,6 +20,12 @@ var ErrNotFound = errors.New("xui: client not found")
 // ErrNotConfigured возвращается, если база URL или API-токен не заданы.
 var ErrNotConfigured = errors.New("xui: not configured")
 
+// ErrUnavailable возвращается при сетевой/HTTP ошибке доступа к панели.
+var ErrUnavailable = errors.New("xui: unavailable")
+
+// ErrNoSubID — клиент найден, но у него пустой subId.
+var ErrNoSubID = errors.New("xui: client has empty subId")
+
 // Client — клиент REST API 3x-ui с Bearer-аутентификацией.
 type Client struct {
 	baseURL    string
@@ -27,7 +33,8 @@ type Client struct {
 	httpClient *http.Client
 }
 
-// New создаёт клиент 3x-ui. baseURL без завершающего слэша.
+// New создаёт клиент 3x-ui. baseURL без завершающего слэша
+// (при кастомном webBasePath панели включайте его в URL, например http://3xui_app:2053/secret).
 func New(baseURL, apiToken string) *Client {
 	return &Client{
 		baseURL:  strings.TrimRight(strings.TrimSpace(baseURL), "/"),
@@ -69,9 +76,7 @@ type apiResponse struct {
 	Obj     json.RawMessage `json:"obj"`
 }
 
-// FindClientByEmail ищет клиента панели по email и возвращает subId.
-// Сначала GET /panel/api/clients/get/:email, затем разбор clients в inbounds/list.
-// GET …/getClientTraffics/:email используется как доп. проверка существования.
+// FindClientByEmail ищет клиента панели по email (поле Email в 3x-ui) и возвращает subId.
 func (c *Client) FindClientByEmail(ctx context.Context, email string) (ClientInfo, error) {
 	if !c.Configured() {
 		return ClientInfo{}, ErrNotConfigured
@@ -81,19 +86,46 @@ func (c *Client) FindClientByEmail(ctx context.Context, email string) (ClientInf
 		return ClientInfo{}, ErrNotFound
 	}
 
+	var sawNoSubID bool
+
 	if info, err := c.findViaClientsGet(ctx, email); err == nil {
 		return info, nil
+	} else if errors.Is(err, ErrNoSubID) {
+		sawNoSubID = true
+	} else if errors.Is(err, ErrUnavailable) || errors.Is(err, ErrNotConfigured) {
+		return ClientInfo{}, err
+	}
+
+	if info, err := c.findViaClientsList(ctx, email); err == nil {
+		return info, nil
+	} else if errors.Is(err, ErrNoSubID) {
+		sawNoSubID = true
+	} else if errors.Is(err, ErrUnavailable) {
+		return ClientInfo{}, err
+	}
+
+	if info, err := c.findViaClientsPaged(ctx, email); err == nil {
+		return info, nil
+	} else if errors.Is(err, ErrNoSubID) {
+		sawNoSubID = true
+	} else if errors.Is(err, ErrUnavailable) {
+		return ClientInfo{}, err
 	}
 
 	if info, err := c.findViaInboundList(ctx, email); err == nil {
 		return info, nil
+	} else if errors.Is(err, ErrUnavailable) {
+		return ClientInfo{}, err
 	}
 
-	// Клиент есть в traffic, но subId не найден — для bind это всё равно ошибка.
-	if _, err := c.GetClientTraffic(ctx, email); err == nil {
-		return ClientInfo{}, ErrNotFound
+	// ClientTraffic тоже содержит subId — последний шанс.
+	if info, err := c.findViaTraffic(ctx, email); err == nil {
+		return info, nil
 	}
 
+	if sawNoSubID {
+		return ClientInfo{}, ErrNoSubID
+	}
 	return ClientInfo{}, ErrNotFound
 }
 
@@ -107,7 +139,7 @@ func (c *Client) GetSubLinks(ctx context.Context, subID string) ([]string, error
 		return nil, ErrNotFound
 	}
 
-	path := "/panel/api/clients/subLinks/" + url.PathEscape(subID)
+	path := "/panel/api/clients/subLinks/" + pathEscape(subID)
 	var resp apiResponse
 	if err := c.getJSON(ctx, path, &resp); err != nil {
 		return nil, err
@@ -136,10 +168,9 @@ func (c *Client) GetClientTraffic(ctx context.Context, email string) (TrafficInf
 		return TrafficInfo{}, ErrNotFound
 	}
 
-	// Современный путь clients/traffic, затем legacy inbounds/getClientTraffics.
 	paths := []string{
-		"/panel/api/clients/traffic/" + url.PathEscape(email),
-		"/panel/api/inbounds/getClientTraffics/" + url.PathEscape(email),
+		"/panel/api/clients/traffic/" + pathEscape(email),
+		"/panel/api/inbounds/getClientTraffics/" + pathEscape(email),
 	}
 	var lastErr error
 	for _, path := range paths {
@@ -166,7 +197,7 @@ func (c *Client) GetClientTraffic(ctx context.Context, email string) (TrafficInf
 }
 
 func (c *Client) findViaClientsGet(ctx context.Context, email string) (ClientInfo, error) {
-	path := "/panel/api/clients/get/" + url.PathEscape(email)
+	path := "/panel/api/clients/get/" + pathEscape(email)
 	var resp apiResponse
 	if err := c.getJSON(ctx, path, &resp); err != nil {
 		return ClientInfo{}, err
@@ -174,7 +205,154 @@ func (c *Client) findViaClientsGet(ctx context.Context, email string) (ClientInf
 	if !resp.Success || len(resp.Obj) == 0 || string(resp.Obj) == "null" {
 		return ClientInfo{}, ErrNotFound
 	}
+	return parseClientObj(resp.Obj, email)
+}
 
+func (c *Client) findViaClientsList(ctx context.Context, email string) (ClientInfo, error) {
+	var resp apiResponse
+	if err := c.getJSON(ctx, "/panel/api/clients/list", &resp); err != nil {
+		return ClientInfo{}, err
+	}
+	if !resp.Success {
+		return ClientInfo{}, ErrNotFound
+	}
+
+	var items []map[string]any
+	if err := json.Unmarshal(resp.Obj, &items); err != nil {
+		return ClientInfo{}, fmt.Errorf("xui clients/list parse: %w", err)
+	}
+
+	emailLower := strings.ToLower(email)
+	var foundEmptySub bool
+	for _, item := range items {
+		em, _ := item["email"].(string)
+		if strings.ToLower(em) != emailLower {
+			continue
+		}
+		sub, _ := item["subId"].(string)
+		if strings.TrimSpace(sub) == "" {
+			foundEmptySub = true
+			continue
+		}
+		return ClientInfo{Email: em, SubID: sub}, nil
+	}
+	if foundEmptySub {
+		return ClientInfo{}, ErrNoSubID
+	}
+	return ClientInfo{}, ErrNotFound
+}
+
+func (c *Client) findViaClientsPaged(ctx context.Context, email string) (ClientInfo, error) {
+	q := url.Values{}
+	q.Set("page", "1")
+	q.Set("pageSize", "50")
+	q.Set("search", email)
+	path := "/panel/api/clients/list/paged?" + q.Encode()
+
+	var resp apiResponse
+	if err := c.getJSON(ctx, path, &resp); err != nil {
+		return ClientInfo{}, err
+	}
+	if !resp.Success {
+		return ClientInfo{}, ErrNotFound
+	}
+
+	var page struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.Unmarshal(resp.Obj, &page); err != nil {
+		return ClientInfo{}, fmt.Errorf("xui clients/paged parse: %w", err)
+	}
+
+	emailLower := strings.ToLower(email)
+	var foundEmptySub bool
+	for _, item := range page.Items {
+		em, _ := item["email"].(string)
+		if strings.ToLower(em) != emailLower {
+			continue
+		}
+		sub, _ := item["subId"].(string)
+		if strings.TrimSpace(sub) == "" {
+			foundEmptySub = true
+			continue
+		}
+		return ClientInfo{Email: em, SubID: sub}, nil
+	}
+	if foundEmptySub {
+		return ClientInfo{}, ErrNoSubID
+	}
+	return ClientInfo{}, ErrNotFound
+}
+
+func (c *Client) findViaInboundList(ctx context.Context, email string) (ClientInfo, error) {
+	var resp apiResponse
+	if err := c.getJSON(ctx, "/panel/api/inbounds/list", &resp); err != nil {
+		return ClientInfo{}, err
+	}
+	if !resp.Success {
+		return ClientInfo{}, fmt.Errorf("%w: inbounds/list: %s", ErrUnavailable, resp.Msg)
+	}
+
+	// В актуальном API settings — JSON-объект; legacy мог отдавать JSON-строку.
+	var inbounds []struct {
+		Settings json.RawMessage `json:"settings"`
+	}
+	if err := json.Unmarshal(resp.Obj, &inbounds); err != nil {
+		return ClientInfo{}, fmt.Errorf("xui inbounds/list parse: %w", err)
+	}
+
+	emailLower := strings.ToLower(email)
+	var foundEmptySub bool
+	for _, ib := range inbounds {
+		settings, ok := parseInboundSettings(ib.Settings)
+		if !ok {
+			continue
+		}
+		for _, cl := range settings.Clients {
+			if strings.ToLower(cl.Email) != emailLower {
+				continue
+			}
+			if strings.TrimSpace(cl.SubID) == "" {
+				foundEmptySub = true
+				continue
+			}
+			return ClientInfo{Email: cl.Email, SubID: cl.SubID}, nil
+		}
+	}
+	if foundEmptySub {
+		return ClientInfo{}, ErrNoSubID
+	}
+	return ClientInfo{}, ErrNotFound
+}
+
+type inboundSettingsClients struct {
+	Clients []struct {
+		Email string `json:"email"`
+		SubID string `json:"subId"`
+	} `json:"clients"`
+}
+
+// parseInboundSettings принимает settings как объект или как JSON-encoded string.
+func parseInboundSettings(raw json.RawMessage) (inboundSettingsClients, bool) {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || string(raw) == "null" {
+		return inboundSettingsClients{}, false
+	}
+	var settings inboundSettingsClients
+	if err := json.Unmarshal(raw, &settings); err == nil {
+		return settings, true
+	}
+	var asString string
+	if err := json.Unmarshal(raw, &asString); err != nil || asString == "" {
+		return inboundSettingsClients{}, false
+	}
+	if err := json.Unmarshal([]byte(asString), &settings); err != nil {
+		return inboundSettingsClients{}, false
+	}
+	return settings, true
+}
+
+func parseClientObj(raw json.RawMessage, fallbackEmail string) (ClientInfo, error) {
 	var wrap struct {
 		Client *struct {
 			Email string `json:"email"`
@@ -183,11 +361,11 @@ func (c *Client) findViaClientsGet(ctx context.Context, email string) (ClientInf
 		Email string `json:"email"`
 		SubID string `json:"subId"`
 	}
-	if err := json.Unmarshal(resp.Obj, &wrap); err != nil {
+	if err := json.Unmarshal(raw, &wrap); err != nil {
 		return ClientInfo{}, fmt.Errorf("xui clients/get parse: %w", err)
 	}
 
-	info := ClientInfo{Email: email}
+	info := ClientInfo{Email: fallbackEmail}
 	if wrap.Client != nil {
 		if wrap.Client.Email != "" {
 			info.Email = wrap.Client.Email
@@ -200,57 +378,20 @@ func (c *Client) findViaClientsGet(ctx context.Context, email string) (ClientInf
 	if wrap.Email != "" {
 		info.Email = wrap.Email
 	}
-	if info.SubID == "" {
-		return ClientInfo{}, ErrNotFound
+	if strings.TrimSpace(info.SubID) == "" {
+		return ClientInfo{}, ErrNoSubID
 	}
 	return info, nil
 }
 
-func (c *Client) findViaInboundList(ctx context.Context, email string) (ClientInfo, error) {
-	var resp apiResponse
-	if err := c.getJSON(ctx, "/panel/api/inbounds/list", &resp); err != nil {
-		return ClientInfo{}, err
-	}
-	if !resp.Success {
-		return ClientInfo{}, fmt.Errorf("xui inbounds/list: %s", resp.Msg)
-	}
-
-	var inbounds []struct {
-		Settings string `json:"settings"`
-	}
-	if err := json.Unmarshal(resp.Obj, &inbounds); err != nil {
-		return ClientInfo{}, fmt.Errorf("xui inbounds/list parse: %w", err)
-	}
-
-	emailLower := strings.ToLower(email)
-	for _, ib := range inbounds {
-		if ib.Settings == "" {
-			continue
-		}
-		var settings struct {
-			Clients []struct {
-				Email string `json:"email"`
-				SubID string `json:"subId"`
-			} `json:"clients"`
-		}
-		if err := json.Unmarshal([]byte(ib.Settings), &settings); err != nil {
-			continue
-		}
-		for _, cl := range settings.Clients {
-			if strings.ToLower(cl.Email) == emailLower && cl.SubID != "" {
-				return ClientInfo{Email: cl.Email, SubID: cl.SubID}, nil
-			}
-		}
-	}
-	return ClientInfo{}, ErrNotFound
-}
-
 func parseTrafficObj(raw json.RawMessage) (TrafficInfo, error) {
 	var t struct {
-		Up         int64 `json:"up"`
-		Down       int64 `json:"down"`
-		Total      int64 `json:"total"`
-		ExpiryTime int64 `json:"expiryTime"`
+		Up         int64  `json:"up"`
+		Down       int64  `json:"down"`
+		Total      int64  `json:"total"`
+		ExpiryTime int64  `json:"expiryTime"`
+		Email      string `json:"email"`
+		SubID      string `json:"subId"`
 	}
 	if err := json.Unmarshal(raw, &t); err != nil {
 		return TrafficInfo{}, fmt.Errorf("xui traffic parse: %w", err)
@@ -267,34 +408,79 @@ func parseTrafficObj(raw json.RawMessage) (TrafficInfo, error) {
 	}, nil
 }
 
+func (c *Client) findViaTraffic(ctx context.Context, email string) (ClientInfo, error) {
+	paths := []string{
+		"/panel/api/clients/traffic/" + pathEscape(email),
+		"/panel/api/inbounds/getClientTraffics/" + pathEscape(email),
+	}
+	for _, path := range paths {
+		var resp apiResponse
+		if err := c.getJSON(ctx, path, &resp); err != nil {
+			continue
+		}
+		if !resp.Success || len(resp.Obj) == 0 || string(resp.Obj) == "null" {
+			continue
+		}
+		var t struct {
+			Email string `json:"email"`
+			SubID string `json:"subId"`
+		}
+		if err := json.Unmarshal(resp.Obj, &t); err != nil {
+			continue
+		}
+		if strings.TrimSpace(t.SubID) == "" {
+			return ClientInfo{}, ErrNoSubID
+		}
+		em := t.Email
+		if em == "" {
+			em = email
+		}
+		return ClientInfo{Email: em, SubID: t.SubID}, nil
+	}
+	return ClientInfo{}, ErrNotFound
+}
+
 func (c *Client) getJSON(ctx context.Context, path string, dest *apiResponse) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
-		return fmt.Errorf("xui request: %w", err)
+		return fmt.Errorf("%w: build request: %v", ErrUnavailable, err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiToken)
 	req.Header.Set("Accept", "application/json")
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("xui do: %w", err)
+		return fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
-		return fmt.Errorf("xui read: %w", err)
+		return fmt.Errorf("%w: read: %v", ErrUnavailable, err)
 	}
-	if res.StatusCode == http.StatusNotFound {
-		return ErrNotFound
+
+	// Не JSON / HTML 404 панели (часто неверный XUI_BASE_URL или webBasePath).
+	ct := res.Header.Get("Content-Type")
+	if res.StatusCode == http.StatusNotFound && !strings.Contains(ct, "json") {
+		return fmt.Errorf("%w: http 404 (проверьте XUI_BASE_URL и webBasePath панели)", ErrUnavailable)
+	}
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("%w: http %d (проверьте XUI_API_TOKEN)", ErrUnavailable, res.StatusCode)
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("xui http %d: %s", res.StatusCode, truncate(body, 200))
+		if res.StatusCode == http.StatusNotFound {
+			return ErrNotFound
+		}
+		return fmt.Errorf("%w: http %d: %s", ErrUnavailable, res.StatusCode, truncate(body, 200))
 	}
 	if err := json.Unmarshal(body, dest); err != nil {
-		return fmt.Errorf("xui json: %w", err)
+		return fmt.Errorf("%w: json: %v", ErrUnavailable, err)
 	}
 	return nil
+}
+
+func pathEscape(s string) string {
+	return url.PathEscape(s)
 }
 
 func looksMissing(msg string) bool {

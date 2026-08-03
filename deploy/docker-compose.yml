@@ -43,13 +43,9 @@ services:
     restart: unless-stopped
     networks:
       - default
-      - xui_net
 
 volumes:
   postgres_data:
 
 networks:
   default:
-  xui_net:
-    external: true
-    name: ${XUI_DOCKER_NETWORK:-3xui_default}
