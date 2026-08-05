@@ -39,7 +39,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool) *gin.Engine {
 	subService := service.NewSubscriptionService(userDAO, titleDAO, announceDAO, xuiClient)
 
 	adminHandler := handler.NewAdminHandler(adminService)
-	subHandler := handler.NewSubscriptionHandler(subService, cfg.GinMode == gin.DebugMode)
+	subHandler := handler.NewSubscriptionHandler(subService)
 
 	api := r.Group("/api/v1")
 	{
