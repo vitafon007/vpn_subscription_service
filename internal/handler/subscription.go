@@ -2,7 +2,9 @@ package handler
 
 import (
 	"errors"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/chistotel/vpn_subscription_service/internal/model"
 	"github.com/chistotel/vpn_subscription_service/internal/service"
@@ -11,12 +13,14 @@ import (
 
 // SubscriptionHandler обрабатывает публичную выдачу подписки.
 type SubscriptionHandler struct {
-	subs *service.SubscriptionService
+	subs  *service.SubscriptionService
+	debug bool
 }
 
 // NewSubscriptionHandler создаёт SubscriptionHandler.
-func NewSubscriptionHandler(subs *service.SubscriptionService) *SubscriptionHandler {
-	return &SubscriptionHandler{subs: subs}
+// debug=true (GIN_MODE=debug) включает подробный лог ответа /api/v1/sub/:token.
+func NewSubscriptionHandler(subs *service.SubscriptionService, debug bool) *SubscriptionHandler {
+	return &SubscriptionHandler{subs: subs, debug: debug}
 }
 
 // GetSubscription godoc
@@ -31,8 +35,16 @@ func NewSubscriptionHandler(subs *service.SubscriptionService) *SubscriptionHand
 // @Router       /api/v1/sub/{token} [get]
 func (h *SubscriptionHandler) GetSubscription(c *gin.Context) {
 	token := c.Param("token")
+
+	if h.debug {
+		log.Printf("sub request: GET %s token=%q headers=%s", c.Request.URL.Path, token, formatHeaderMap(c.Request.Header))
+	}
+
 	result, err := h.subs.Get(c.Request.Context(), token)
 	if err != nil {
+		if h.debug {
+			log.Printf("sub response: token=%q error=%v", token, err)
+		}
 		switch {
 		case errors.Is(err, service.ErrNotFound):
 			c.JSON(http.StatusNotFound, model.ErrorResponse{Error: "not found"})
@@ -53,5 +65,35 @@ func (h *SubscriptionHandler) GetSubscription(c *gin.Context) {
 	if result.Userinfo != "" {
 		c.Header("Subscription-Userinfo", result.Userinfo)
 	}
+
+	if h.debug {
+		log.Printf("sub response: token=%q status=200 headers={Profile-Title:%q Announce:%q Subscription-Userinfo:%q Content-Type:%q} body=%q",
+			token,
+			result.ProfileTitle,
+			result.Announce,
+			result.Userinfo,
+			"text/plain; charset=utf-8",
+			truncateForLog(string(result.Body), 2000),
+		)
+	}
+
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", result.Body)
+}
+
+func formatHeaderMap(h http.Header) string {
+	if len(h) == 0 {
+		return "{}"
+	}
+	parts := make([]string, 0, len(h))
+	for k, vals := range h {
+		parts = append(parts, k+"="+strings.Join(vals, ","))
+	}
+	return "{" + strings.Join(parts, "; ") + "}"
+}
+
+func truncateForLog(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
 }
