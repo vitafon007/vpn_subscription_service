@@ -110,6 +110,56 @@ body {
   gap: 12px;
 }
 
+.btn-row.btn-row-solo {
+  grid-template-columns: 1fr;
+}
+
+.btn-flee {
+  animation: fleeOut 420ms ease forwards;
+  pointer-events: none;
+}
+
+@keyframes fleeOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  40% {
+    opacity: 0.85;
+    transform: scale(0.92) translate(18px, -8px) rotate(4deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.4) translate(40px, -28px) rotate(12deg);
+  }
+}
+
+.yes-flash {
+  min-height: 28dvh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 24px 8px;
+}
+
+.yes-flash-text {
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 300;
+  font-style: italic;
+  font-size: clamp(1.8rem, 9vw, 2.6rem);
+  letter-spacing: 0.04em;
+  color: var(--champagne);
+  animation: fadeUp 520ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-flee {
+    animation: none !important;
+    opacity: 0;
+  }
+}
+
 .btn {
   appearance: none;
   border: 1px solid var(--line);

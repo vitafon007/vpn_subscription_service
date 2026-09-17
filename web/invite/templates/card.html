@@ -46,11 +46,15 @@
 
     <section id="ask-block" class="section{{if .ExistingRSVP}} hidden{{end}}">
       <p class="display" style="font-size: 1.55rem; margin: 0 0 18px;">Идёшь?</p>
-      <div class="btn-row">
+      <div class="btn-row" id="ask-btn-row">
         <button type="button" class="btn btn-primary" id="btn-yes">Да</button>
         <button type="button" class="btn btn-ghost" id="btn-no">Не сейчас</button>
       </div>
       <p class="label" style="margin-top: 16px;">приходи как есть</p>
+    </section>
+
+    <section id="yes-flash" class="section yes-flash hidden" aria-live="polite">
+      <p class="yes-flash-text">ОНА СКАЗАЛА ДА!</p>
     </section>
 
     <section id="no-block" class="section{{if and .ExistingRSVP (eq .ExistingRSVP.Answer "no")}}{{else}} hidden{{end}}">
@@ -191,6 +195,7 @@
         InviteApp.hide(document.getElementById("ask-block"));
         InviteApp.hide(document.getElementById("no-block"));
         InviteApp.hide(document.getElementById("done-block"));
+        InviteApp.hide(document.getElementById("yes-flash"));
         InviteApp.show(document.getElementById("form-block"));
         if (prefill) InviteApp.applyRSVPToForm(prefill);
         document.getElementById("btn-submit").disabled = false;
@@ -201,6 +206,7 @@
         InviteApp.hide(document.getElementById("ask-block"));
         InviteApp.hide(document.getElementById("form-block"));
         InviteApp.hide(document.getElementById("no-block"));
+        InviteApp.hide(document.getElementById("yes-flash"));
         InviteApp.show(document.getElementById("done-block"));
       }
 
@@ -208,7 +214,27 @@
         InviteApp.hide(document.getElementById("ask-block"));
         InviteApp.hide(document.getElementById("form-block"));
         InviteApp.hide(document.getElementById("done-block"));
+        InviteApp.hide(document.getElementById("yes-flash"));
         InviteApp.show(document.getElementById("no-block"));
+      }
+
+      function showYesFlashThenForm() {
+        InviteApp.hide(document.getElementById("ask-block"));
+        InviteApp.hide(document.getElementById("no-block"));
+        InviteApp.hide(document.getElementById("done-block"));
+        InviteApp.hide(document.getElementById("form-block"));
+        InviteApp.show(document.getElementById("yes-flash"));
+        InviteApp.track("she_said_yes", {});
+        if (navigator.vibrate) {
+          try { navigator.vibrate([40, 60, 40]); } catch (e) {}
+        }
+        setTimeout(function () {
+          openForm(existing && existing.answer === "yes" ? existing : null);
+          if (!formStarted) {
+            formStarted = true;
+            InviteApp.track("form_start", {});
+          }
+        }, 3000);
       }
 
       var formStarted = false;
@@ -221,11 +247,7 @@
       }
 
       document.getElementById("btn-yes").addEventListener("click", function () {
-        openForm(existing && existing.answer === "yes" ? existing : null);
-        if (!formStarted) {
-          formStarted = true;
-          InviteApp.track("form_start", {});
-        }
+        showYesFlashThenForm();
       });
 
       document.getElementById("btn-edit-yes").addEventListener("click", function () {
@@ -242,12 +264,17 @@
       });
 
       document.getElementById("btn-no").addEventListener("click", function () {
-        InviteApp.postJSON("/invite/api/rsvp", { answer: "no" }).then(function (res) {
-          if (!res || !res.ok) return;
-          existing = { answer: "no" };
-          window.__INVITE__.existing = existing;
-          showNo();
-        }).catch(function () {});
+        var btn = document.getElementById("btn-no");
+        var row = document.getElementById("ask-btn-row");
+        if (btn.classList.contains("btn-flee")) return;
+        InviteApp.track("rsvp_no_dodge", {});
+        btn.classList.add("btn-flee");
+        btn.setAttribute("aria-hidden", "true");
+        btn.disabled = true;
+        setTimeout(function () {
+          btn.remove();
+          if (row) row.classList.add("btn-row-solo");
+        }, 420);
       });
 
       document.getElementById("btn-submit").addEventListener("click", function () {
