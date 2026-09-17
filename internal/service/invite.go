@@ -47,6 +47,7 @@ var allowedEvents = map[string]struct{}{
 	"form_start":         {},
 	"form_submit":        {},
 	"calendar_added":     {},
+	"parents_note_open":  {},
 }
 
 var allowedVibe = map[string]struct{}{

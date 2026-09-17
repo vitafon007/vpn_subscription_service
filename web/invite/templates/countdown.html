@@ -19,7 +19,7 @@
   <main class="shell fade-in">
     <p class="label">Саратов · 25.09 · 20:00</p>
     <h1 class="display" style="font-size: clamp(2.4rem, 11vw, 3.2rem); margin: 28px 0 10px;">Вероника.</h1>
-    <p style="margin: 0; color: var(--muted); font-size: 1.05rem; line-height: 1.55;">Есть повод подождать.</p>
+    <p style="margin: 0; color: var(--muted); font-size: 1.05rem; line-height: 1.55;">Это стоит ожидания.</p>
 
     <div class="countdown-grid" aria-live="polite">
       <div class="countdown-cell">
@@ -40,7 +40,21 @@
       </div>
     </div>
 
-    <p class="label" style="margin-top: auto;">Не закрывай. Скоро.</p>
+    <div class="parents-note">
+      <button type="button" class="parents-toggle" id="parents-toggle" aria-expanded="false" aria-controls="parents-panel">
+        <span>Для будущих тестя и тёщи</span>
+        <span class="chev" aria-hidden="true"></span>
+      </button>
+      <div class="parents-panel" id="parents-panel" role="region" hidden>
+        <div class="parents-card">
+          <p>Буду рад познакомиться в скором времени.</p>
+          <p>За дочку несу ответственность головой. Намерения серьёзные.</p>
+          <p class="soft">Виталий · <a class="phone" href="tel:+79053218891">+7&nbsp;905&nbsp;321‑88‑91</a></p>
+        </div>
+      </div>
+    </div>
+
+    <p class="label" style="margin-top: 22px;">Жди.</p>
   </main>
 
   <script>
@@ -55,6 +69,32 @@
     InviteApp.track("page_open", { variant: "countdown" });
     InviteApp.startHeartbeat("countdown");
     InviteApp.syncCountdown(window.__INVITE__.revealUnix, window.__INVITE__.serverUnix);
+
+    (function () {
+      var btn = document.getElementById("parents-toggle");
+      var panel = document.getElementById("parents-panel");
+      var openedOnce = false;
+      btn.addEventListener("click", function () {
+        var open = btn.getAttribute("aria-expanded") === "true";
+        open = !open;
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) {
+          panel.hidden = false;
+          requestAnimationFrame(function () {
+            panel.classList.add("open");
+          });
+          if (!openedOnce) {
+            openedOnce = true;
+            InviteApp.track("parents_note_open", {});
+          }
+        } else {
+          panel.classList.remove("open");
+          setTimeout(function () {
+            if (btn.getAttribute("aria-expanded") !== "true") panel.hidden = true;
+          }, 320);
+        }
+      });
+    })();
   </script>
 </body>
 </html>

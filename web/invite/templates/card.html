@@ -23,9 +23,9 @@
   {{end}}
 
   <main class="shell fade-in" id="main">
-    <p class="label">Для тебя</p>
-    <h1 class="display" style="font-size: clamp(2rem, 9vw, 2.7rem); margin: 18px 0 6px;">Пятница уже была.</h1>
-    <p style="margin: 0 0 8px; color: var(--muted); line-height: 1.5;">Давай сделаем вечер.</p>
+    <p class="label">Лично</p>
+    <h1 class="display" style="font-size: clamp(2rem, 9vw, 2.7rem); margin: 18px 0 6px;">Хочу вечер с тобой.</h1>
+    <p style="margin: 0 0 8px; color: var(--muted); line-height: 1.5;">Место, еда, настроение — твой выбор.</p>
 
     <div class="video-wrap" id="video-wrap">
       {{if .HasVideo}}
@@ -37,24 +37,24 @@
       {{else}}
       <div class="poster-fallback">
         <div>
-          <p class="display" style="font-size: 1.6rem; margin: 0 0 8px;">Открытка уже здесь.</p>
-          <p class="label">видео появится чуть позже</p>
+          <p class="display" style="font-size: 1.6rem; margin: 0 0 8px;">Смотри сюда.</p>
+          <p class="label">ролик скоро</p>
         </div>
       </div>
       {{end}}
     </div>
 
     <section id="ask-block" class="section{{if .ExistingRSVP}} hidden{{end}}">
-      <p class="display" style="font-size: 1.55rem; margin: 0 0 18px;">Пойдёшь со мной?</p>
+      <p class="display" style="font-size: 1.55rem; margin: 0 0 18px;">Идёшь?</p>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="btn-yes">Да</button>
-        <button type="button" class="btn btn-ghost" id="btn-no">Не в этот раз</button>
+        <button type="button" class="btn btn-ghost" id="btn-no">Не сейчас</button>
       </div>
-      <p class="label" style="margin-top: 16px;">smart casual · без повода нервничать</p>
+      <p class="label" style="margin-top: 16px;">приходи как есть</p>
     </section>
 
     <section id="no-block" class="section{{if and .ExistingRSVP (eq .ExistingRSVP.Answer "no")}}{{else}} hidden{{end}}">
-      <p class="display" style="font-size: 1.7rem; margin: 0 0 18px;">Ок. Без драмы.</p>
+      <p class="display" style="font-size: 1.7rem; margin: 0 0 18px;">Принял.</p>
       <button type="button" class="btn btn-ghost" id="btn-edit-no" style="width: 100%;">Изменить</button>
     </section>
 
@@ -126,7 +126,7 @@
     </section>
 
     <section id="done-block" class="section{{if and .ExistingRSVP (eq .ExistingRSVP.Answer "yes")}}{{else}} hidden{{end}}">
-      <p class="display" style="font-size: 1.7rem; margin: 0 0 14px;">Принял. Напишу в день.</p>
+      <p class="display" style="font-size: 1.7rem; margin: 0 0 14px;">Записал. Напишу ближе к дню.</p>
       <div class="receipt" id="receipt"></div>
       <a class="btn btn-ghost" id="btn-calendar" href="/invite/api/calendar.ics" style="display: block; text-align: center; text-decoration: none; margin-top: 16px;">В календарь</a>
       <button type="button" class="btn btn-ghost" id="btn-edit-yes" style="width: 100%; margin-top: 10px;">Изменить</button>
