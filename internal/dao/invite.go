@@ -266,3 +266,45 @@ func (d *InviteDAO) CountPageOpenVariant(ctx context.Context, variant string) (i
 	}
 	return n, nil
 }
+
+// ClearAllResult — сколько строк удалено при сбросе.
+type ClearAllResult struct {
+	Sessions int64
+	Events   int64
+	RSVP     int64
+}
+
+// ClearAll удаляет все данные приглашения (events/rsvp каскадом с sessions).
+func (d *InviteDAO) ClearAll(ctx context.Context) (ClearAllResult, error) {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return ClearAllResult{}, fmt.Errorf("invite clear begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var events, rsvp, sessions int64
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM invite_events`).Scan(&events); err != nil {
+		return ClearAllResult{}, fmt.Errorf("invite clear count events: %w", err)
+	}
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM invite_rsvp`).Scan(&rsvp); err != nil {
+		return ClearAllResult{}, fmt.Errorf("invite clear count rsvp: %w", err)
+	}
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM invite_sessions`).Scan(&sessions); err != nil {
+		return ClearAllResult{}, fmt.Errorf("invite clear count sessions: %w", err)
+	}
+
+	// CASCADE с sessions чистит events и rsvp; явное удаление — на случай FK/порядка.
+	if _, err := tx.Exec(ctx, `DELETE FROM invite_events`); err != nil {
+		return ClearAllResult{}, fmt.Errorf("invite clear events: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM invite_rsvp`); err != nil {
+		return ClearAllResult{}, fmt.Errorf("invite clear rsvp: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM invite_sessions`); err != nil {
+		return ClearAllResult{}, fmt.Errorf("invite clear sessions: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return ClearAllResult{}, fmt.Errorf("invite clear commit: %w", err)
+	}
+	return ClearAllResult{Sessions: sessions, Events: events, RSVP: rsvp}, nil
+}

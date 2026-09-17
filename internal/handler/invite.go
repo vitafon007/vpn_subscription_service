@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/subtle"
 	"errors"
 	"html/template"
 	"io/fs"
@@ -265,4 +266,40 @@ func (h *InviteHandler) ServeVideo(c *gin.Context) {
 // NotFoundQuiet — глухой 404.
 func (h *InviteHandler) NotFoundQuiet(c *gin.Context) {
 	c.Status(http.StatusNotFound)
+}
+
+// Reset godoc
+// @Summary      Сбросить данные открытки
+// @Description  Удаляет invite_sessions, invite_events и invite_rsvp. Password = ADMIN_TOKEN. Также сбрасывает cookie invite_sid у вызывающего.
+// @Tags         invite
+// @Accept       json
+// @Produce      json
+// @Param        body  body  model.InviteResetRequest  true  "Пароль = ADMIN_TOKEN"
+// @Success      200   {object}  model.InviteResetResponse
+// @Failure      400   {object}  model.ErrorResponse
+// @Failure      401   {object}  model.ErrorResponse
+// @Failure      500   {object}  model.ErrorResponse
+// @Router       /api/v1/admin/invite/reset [post]
+func (h *InviteHandler) Reset(c *gin.Context) {
+	var req model.InviteResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, model.ErrorResponse{Error: "invalid request"})
+		return
+	}
+	adminToken := h.svc.Config().AdminToken
+	if adminToken == "" ||
+		subtle.ConstantTimeCompare([]byte(req.Password), []byte(adminToken)) != 1 {
+		c.JSON(http.StatusUnauthorized, model.ErrorResponse{Error: "unauthorized"})
+		return
+	}
+	out, err := h.svc.ResetAll(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, model.ErrorResponse{Error: "internal"})
+		return
+	}
+	// Сбрасываем cookie тестовой сессии, чтобы следующий заход был «с нуля».
+	cfg := h.svc.Config()
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(inviteCookieName, "", -1, "/", "", cfg.InviteSecureCookie(), true)
+	c.JSON(http.StatusOK, out)
 }

@@ -208,6 +208,20 @@ func (s *InviteService) GetRSVPForSession(ctx context.Context, sessionID string)
 	return s.dao.GetRSVPBySession(ctx, sessionID)
 }
 
+// ResetAll очищает sessions/events/rsvp приглашения.
+func (s *InviteService) ResetAll(ctx context.Context) (model.InviteResetResponse, error) {
+	res, err := s.dao.ClearAll(ctx)
+	if err != nil {
+		return model.InviteResetResponse{}, err
+	}
+	return model.InviteResetResponse{
+		Message:         "ok",
+		SessionsDeleted: res.Sessions,
+		EventsDeleted:   res.Events,
+		RSVPDeleted:     res.RSVP,
+	}, nil
+}
+
 // AdminStats собирает сводку для админ-страницы.
 func (s *InviteService) AdminStats(ctx context.Context) (model.InviteAdminStats, error) {
 	if !s.Enabled() {

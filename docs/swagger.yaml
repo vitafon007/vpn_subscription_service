@@ -76,6 +76,30 @@ definitions:
         example: ok
         type: string
     type: object
+  model.InviteResetRequest:
+    properties:
+      password:
+        description: Password — тот же секрет, что ADMIN_TOKEN.
+        example: change-me
+        type: string
+    required:
+    - password
+    type: object
+  model.InviteResetResponse:
+    properties:
+      events_deleted:
+        example: 12
+        type: integer
+      message:
+        example: ok
+        type: string
+      rsvp_deleted:
+        example: 1
+        type: integer
+      sessions_deleted:
+        example: 1
+        type: integer
+    type: object
   model.MessageResponse:
     properties:
       message:
@@ -106,6 +130,41 @@ info:
   title: VPN Subscription Service API
   version: "1.0"
 paths:
+  /api/v1/admin/invite/reset:
+    post:
+      consumes:
+      - application/json
+      description: Удаляет invite_sessions, invite_events и invite_rsvp. Password
+        = ADMIN_TOKEN. Также сбрасывает cookie invite_sid у вызывающего.
+      parameters:
+      - description: Пароль = ADMIN_TOKEN
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.InviteResetRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.InviteResetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Сбросить данные открытки
+      tags:
+      - invite
   /api/v1/admin/users:
     post:
       consumes:

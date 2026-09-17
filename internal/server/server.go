@@ -44,6 +44,13 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool) *gin.Engine {
 	adminHandler := handler.NewAdminHandler(adminService)
 	subHandler := handler.NewSubscriptionHandler(subService)
 
+	inviteDAO := dao.NewInviteDAO(pool)
+	inviteSvc := service.NewInviteService(inviteDAO, cfg)
+	inviteHandler, err := handler.NewInviteHandler(inviteSvc)
+	if err != nil {
+		log.Fatalf("invite templates: %v", err)
+	}
+
 	api := r.Group("/api/v1")
 	{
 		api.GET("/health", healthHandler.Liveness)
@@ -59,18 +66,14 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool) *gin.Engine {
 			admin.GET("/users/:login/announces", adminHandler.ListAnnounces)
 			admin.DELETE("/users/:login/announces/:id", adminHandler.DeleteAnnounce)
 		}
+
+		// Сброс открытки: пароль в body (= ADMIN_TOKEN), без Bearer — удобно из Swagger.
+		api.POST("/admin/invite/reset", inviteHandler.Reset)
 	}
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	if cfg.InviteEnabled() {
-		inviteDAO := dao.NewInviteDAO(pool)
-		inviteSvc := service.NewInviteService(inviteDAO, cfg)
-		inviteHandler, err := handler.NewInviteHandler(inviteSvc)
-		if err != nil {
-			log.Fatalf("invite templates: %v", err)
-		}
-
 		r.StaticFS("/invite/static", inviteHandler.StaticFS())
 		r.POST("/invite/api/events", inviteHandler.PostEvent)
 		r.POST("/invite/api/rsvp", inviteHandler.PostRSVP)
@@ -81,7 +84,6 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool) *gin.Engine {
 		r.GET("/"+cfg.InviteAdminUID, inviteHandler.AdminPage)
 		r.GET("/"+cfg.InvitePageUID+"/media/card.mp4", inviteHandler.ServeVideo)
 	} else {
-		// Заглушки, чтобы случайные /invite/* не светили структуру, если выключено.
 		r.Any("/invite/*path", func(c *gin.Context) {
 			c.Status(http.StatusNotFound)
 		})

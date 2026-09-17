@@ -2,6 +2,20 @@ package model
 
 import "time"
 
+// InviteResetRequest — тело POST /api/v1/admin/invite/reset.
+type InviteResetRequest struct {
+	// Password — тот же секрет, что ADMIN_TOKEN.
+	Password string `json:"password" binding:"required" example:"change-me"`
+}
+
+// InviteResetResponse — результат очистки данных открытки.
+type InviteResetResponse struct {
+	Message         string `json:"message" example:"ok"`
+	SessionsDeleted int64  `json:"sessions_deleted" example:"1"`
+	EventsDeleted   int64  `json:"events_deleted" example:"12"`
+	RSVPDeleted     int64  `json:"rsvp_deleted" example:"1"`
+}
+
 // InviteEventRequest — тело POST /invite/api/events.
 type InviteEventRequest struct {
 	Type    string         `json:"type" binding:"required"`

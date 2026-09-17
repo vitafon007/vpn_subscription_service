@@ -43,6 +43,19 @@ func main() {
 	if !cfg.XUIConfigured() {
 		log.Printf("предупреждение: XUI_BASE_URL/XUI_API_TOKEN не заданы — bind/sub вернут 503")
 	}
+	if cfg.InviteEnabled() {
+		reveal, err := cfg.InviteRevealTime()
+		if err != nil {
+			log.Printf("invite: enabled gate=%q page=%q admin=%q reveal=ERR(%v)",
+				cfg.InviteGateUID, cfg.InvitePageUID, cfg.InviteAdminUID, err)
+		} else {
+			log.Printf("invite: enabled gate=%q page=%q admin=%q reveal=%s tz=%s",
+				cfg.InviteGateUID, cfg.InvitePageUID, cfg.InviteAdminUID,
+				reveal.Format(time.RFC3339), cfg.InviteTZ)
+		}
+	} else {
+		log.Printf("invite: disabled (нужны INVITE_GATE_UID, INVITE_PAGE_UID, INVITE_ADMIN_UID)")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

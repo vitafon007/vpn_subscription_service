@@ -15,6 +15,58 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/admin/invite/reset": {
+            "post": {
+                "description": "Удаляет invite_sessions, invite_events и invite_rsvp. Password = ADMIN_TOKEN. Также сбрасывает cookie invite_sid у вызывающего.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invite"
+                ],
+                "summary": "Сбросить данные открытки",
+                "parameters": [
+                    {
+                        "description": "Пароль = ADMIN_TOKEN",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.InviteResetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.InviteResetResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/users": {
             "post": {
                 "security": [
@@ -501,6 +553,40 @@ const docTemplate = `{
                     "description": "Status — статус сервиса (ok).",
                     "type": "string",
                     "example": "ok"
+                }
+            }
+        },
+        "model.InviteResetRequest": {
+            "type": "object",
+            "required": [
+                "password"
+            ],
+            "properties": {
+                "password": {
+                    "description": "Password — тот же секрет, что ADMIN_TOKEN.",
+                    "type": "string",
+                    "example": "change-me"
+                }
+            }
+        },
+        "model.InviteResetResponse": {
+            "type": "object",
+            "properties": {
+                "events_deleted": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "message": {
+                    "type": "string",
+                    "example": "ok"
+                },
+                "rsvp_deleted": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "sessions_deleted": {
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },

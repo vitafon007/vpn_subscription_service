@@ -6,16 +6,16 @@
 
 ## Архитектура
 
-| Слой | Путь | Ответственность |
-|------|------|-----------------|
-| handler | `internal/handler` | HTTP (Gin), без доступа к БД |
-| service | `internal/service` | бизнес-логика |
-| dao | `internal/dao` | Postgres |
-| xui | `internal/xui` | HTTP-клиент 3x-ui |
-| db | `internal/db` | пул pgx + миграции |
-| model | `internal/model` | DTO |
-| middleware | `internal/middleware` | RequireAdmin |
-| config / server | `internal/config`, `internal/server` | конфиг и роутер |
+| Слой            | Путь                                 | Ответственность              |
+| --------------- | ------------------------------------ | ---------------------------- |
+| handler         | `internal/handler`                   | HTTP (Gin), без доступа к БД |
+| service         | `internal/service`                   | бизнес-логика                |
+| dao             | `internal/dao`                       | Postgres                     |
+| xui             | `internal/xui`                       | HTTP-клиент 3x-ui            |
+| db              | `internal/db`                        | пул pgx + миграции           |
+| model           | `internal/model`                     | DTO                          |
+| middleware      | `internal/middleware`                | RequireAdmin                 |
+| config / server | `internal/config`, `internal/server` | конфиг и роутер              |
 
 ## API
 
@@ -23,21 +23,21 @@
 
 ### Публичные
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/health` | liveness |
-| GET | `/ready` | readiness (Postgres) |
-| GET | `/sub/:token` | подписка: body = base64 ссылок; заголовки Profile-Title, Announce, Subscription-Userinfo |
+| Метод | Путь          | Описание                                                                                 |
+| ----- | ------------- | ---------------------------------------------------------------------------------------- |
+| GET   | `/health`     | liveness                                                                                 |
+| GET   | `/ready`      | readiness (Postgres)                                                                     |
+| GET   | `/sub/:token` | подписка: body = base64 ссылок; заголовки Profile-Title, Announce, Subscription-Userinfo |
 
 ### Админ (`Authorization: Bearer ADMIN_TOKEN`)
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | `/admin/users` | bind: `{ "login": "<email_3xui>" }` → `{ login, token, subscription_url }` |
-| PUT | `/admin/users/:login/title` | заголовок: `{ "title": "..." }` |
-| POST | `/admin/users/:login/announces` | добавить анонс: `{ "body": "..." }` |
-| GET | `/admin/users/:login/announces` | список анонсов |
-| DELETE | `/admin/users/:login/announces/:id` | удалить анонс |
+| Метод  | Путь                                | Описание                                                                   |
+| ------ | ----------------------------------- | -------------------------------------------------------------------------- |
+| POST   | `/admin/users`                      | bind: `{ "login": "<email_3xui>" }` → `{ login, token, subscription_url }` |
+| PUT    | `/admin/users/:login/title`         | заголовок: `{ "title": "..." }`                                            |
+| POST   | `/admin/users/:login/announces`     | добавить анонс: `{ "body": "..." }`                                        |
+| GET    | `/admin/users/:login/announces`     | список анонсов                                                             |
+| DELETE | `/admin/users/:login/announces/:id` | удалить анонс                                                              |
 
 Swagger UI: http://127.0.0.1:23452/swagger/index.html
 
@@ -54,23 +54,23 @@ Swagger UI: http://127.0.0.1:23452/swagger/index.html
 
 См. `.env.example`:
 
-| Переменная | По умолчанию | Описание |
-|------------|--------------|----------|
-| `PORT` | `23452` | порт HTTP |
-| `DATABASE_URL` | postgres://… | Postgres |
-| `GIN_MODE` | `debug` | режим Gin |
-| `ADMIN_TOKEN` | *(пусто)* | Bearer для `/admin/*`; пустой = deny-all |
-| `XUI_BASE_URL` | *(пусто)* | база 3x-ui, напр. `http://3xui_app:2053` |
-| `XUI_API_TOKEN` | *(пусто)* | Bearer API-токен панели |
-| `PUBLIC_BASE_URL` | `http://127.0.0.1:23452` | база для `subscription_url` |
-| `XUI_DOCKER_NETWORK` | `3xui_default` | внешняя docker-сеть 3x-ui |
-| `IMAGE` | `vpn_subscription_service:latest` | образ compose |
-| `INVITE_GATE_UID` | *(пусто)* | секретный UID QR-входа; пустой = лендинг выключен |
-| `INVITE_PAGE_UID` | *(пусто)* | UID countdown/открытки |
-| `INVITE_ADMIN_UID` | *(пусто)* | UID админ-таймлайна |
-| `INVITE_TZ` | `Europe/Saratov` | timezone reveal |
-| `INVITE_REVEAL_AT` | `2026-09-25T20:00:00` | локальное время открытия открытки |
-| `INVITE_VIDEO_PATH` | `/data/invite/card.mp4` | путь к mp4 в контейнере |
+| Переменная           | По умолчанию                      | Описание                                          |
+| -------------------- | --------------------------------- | ------------------------------------------------- |
+| `PORT`               | `23452`                           | порт HTTP                                         |
+| `DATABASE_URL`       | postgres://…                      | Postgres                                          |
+| `GIN_MODE`           | `debug`                           | режим Gin                                         |
+| `ADMIN_TOKEN`        | _(пусто)_                         | Bearer для `/admin/*`; пустой = deny-all          |
+| `XUI_BASE_URL`       | _(пусто)_                         | база 3x-ui, напр. `http://3xui_app:2053`          |
+| `XUI_API_TOKEN`      | _(пусто)_                         | Bearer API-токен панели                           |
+| `PUBLIC_BASE_URL`    | `http://127.0.0.1:23452`          | база для `subscription_url`                       |
+| `XUI_DOCKER_NETWORK` | `3xui_default`                    | внешняя docker-сеть 3x-ui                         |
+| `IMAGE`              | `vpn_subscription_service:latest` | образ compose                                     |
+| `INVITE_GATE_UID`    | _(пусто)_                         | секретный UID QR-входа; пустой = лендинг выключен |
+| `INVITE_PAGE_UID`    | _(пусто)_                         | UID countdown/открытки                            |
+| `INVITE_ADMIN_UID`   | _(пусто)_                         | UID админ-таймлайна                               |
+| `INVITE_TZ`          | `Europe/Saratov`                  | timezone reveal                                   |
+| `INVITE_REVEAL_AT`   | `2026-09-25T20:00:00`             | локальное время открытия открытки                 |
+| `INVITE_VIDEO_PATH`  | `/data/invite/card.mp4`           | путь к mp4 в контейнере                           |
 
 Если `XUI_*` не заданы, `/health` и `/ready` работают, а bind/sub отвечают **503**.
 
@@ -154,13 +154,13 @@ Workflow `.github/workflows/ci-cd.yml` при push в `main`:
 
 ### Secrets репозитория
 
-| Secret | Назначение |
-|--------|------------|
-| `SSH_HOST` | хост сервера |
-| `SSH_USER` | пользователь SSH |
-| `SSH_PRIVATE_KEY` | приватный ключ |
-| `SSH_PORT` | порт SSH (опционально) |
-| `DEPLOY_PATH` | каталог с `docker-compose.yml` |
+| Secret            | Назначение                     |
+| ----------------- | ------------------------------ |
+| `SSH_HOST`        | хост сервера                   |
+| `SSH_USER`        | пользователь SSH               |
+| `SSH_PRIVATE_KEY` | приватный ключ                 |
+| `SSH_PORT`        | порт SSH (опционально)         |
+| `DEPLOY_PATH`     | каталог с `docker-compose.yml` |
 
 ## Модуль
 
