@@ -190,6 +190,41 @@ func (d *InviteDAO) LatestRSVP(ctx context.Context) (InviteRSVP, error) {
 	return r, nil
 }
 
+// ListRSVP возвращает все RSVP, новые сверху.
+func (d *InviteDAO) ListRSVP(ctx context.Context, limit int) ([]InviteRSVP, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := d.pool.Query(ctx, `
+		SELECT session_id, answer, date_pref, time_pref, vibe, food, meet, notes, created_at, updated_at
+		FROM invite_rsvp
+		ORDER BY updated_at DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("invite rsvp list: %w", err)
+	}
+	defer rows.Close()
+
+	var out []InviteRSVP
+	for rows.Next() {
+		var r InviteRSVP
+		if err := rows.Scan(
+			&r.SessionID, &r.Answer, &r.DatePref, &r.TimePref,
+			&r.Vibe, &r.Food, &r.Meet, &r.Notes, &r.CreatedAt, &r.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("invite rsvp scan: %w", err)
+		}
+		if r.Vibe == nil {
+			r.Vibe = []string{}
+		}
+		if r.Food == nil {
+			r.Food = []string{}
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // ListEvents возвращает последние N событий.
 func (d *InviteDAO) ListEvents(ctx context.Context, limit int) ([]InviteEventRow, error) {
 	if limit <= 0 {

@@ -33,23 +33,37 @@
     </div>
 
     <div class="admin-card">
-      <h3>RSVP</h3>
-      {{if .RSVP}}
-      <p style="margin: 0 0 8px; font-size: 1.2rem;">
-        Ответ: <strong style="color: var(--champagne);">{{.RSVP.Answer}}</strong>
-      </p>
-      <dl class="receipt" style="border: 0; padding: 0; background: transparent;">
-        <dt>Дата</dt><dd>{{.RSVP.DatePref}}</dd>
-        <dt>Время</dt><dd>{{.RSVP.TimePref}}</dd>
-        <dt>Вайб</dt><dd>{{range $i, $v := .RSVP.Vibe}}{{if $i}}, {{end}}{{$v}}{{else}}—{{end}}</dd>
-        <dt>Еда</dt><dd>{{range $i, $v := .RSVP.Food}}{{if $i}}, {{end}}{{$v}}{{else}}—{{end}}</dd>
-        <dt>Встреча</dt><dd>{{if .RSVP.Meet}}{{.RSVP.Meet}}{{else}}—{{end}}</dd>
-        <dt>Заметка</dt><dd>{{if .RSVP.Notes}}{{.RSVP.Notes}}{{else}}—{{end}}</dd>
-        <dt>Обновлено</dt><dd>{{.RSVP.UpdatedAt.Format "02.01 15:04"}}</dd>
-      </dl>
-      {{else}}
-      <p style="margin: 0; color: var(--muted);">Пока нет ответа.</p>
+      <h3>RSVP · все ответы</h3>
+      {{if .RSVPs}}
+      {{range .RSVPs}}
+      <div class="receipt" style="margin-bottom: 12px;">
+        <p style="margin: 0 0 8px; font-size: 1.05rem;">
+          Ответ: <strong style="color: var(--champagne);">{{.Answer}}</strong>
+          <span style="color: var(--muted); font-size: 0.75rem;"> · {{printf "%.8s" .SessionID}} · {{.UpdatedAt.Format "02.01 15:04"}}</span>
+        </p>
+        <dl style="margin: 0;">
+          <dt>Дата</dt><dd>{{if .DatePref}}{{.DatePref}}{{else}}—{{end}}</dd>
+          <dt>Время</dt><dd>{{if .TimePref}}{{.TimePref}}{{else}}—{{end}}</dd>
+          <dt>Вайб</dt><dd>{{range $i, $v := .Vibe}}{{if $i}}, {{end}}{{$v}}{{else}}—{{end}}</dd>
+          <dt>Еда</dt><dd>{{range $i, $v := .Food}}{{if $i}}, {{end}}{{$v}}{{else}}—{{end}}</dd>
+          <dt>Встреча</dt><dd>{{if .Meet}}{{.Meet}}{{else}}—{{end}}</dd>
+          <dt>Заметка</dt><dd>{{if .Notes}}{{.Notes}}{{else}}—{{end}}</dd>
+        </dl>
+      </div>
       {{end}}
+      {{else}}
+      <p style="margin: 0; color: var(--muted);">Пока нет ответов.</p>
+      {{end}}
+    </div>
+
+    <div class="admin-card">
+      <h3>Сброс данных</h3>
+      <p style="margin: 0 0 12px; color: var(--muted); font-size: 0.85rem; line-height: 1.45;">
+        Удалит сессии, события и RSVP. Пароль = ADMIN_TOKEN.
+      </p>
+      <input class="field" type="password" id="reset-password" placeholder="пароль" autocomplete="current-password" style="min-height: 48px;">
+      <button type="button" class="btn btn-ghost" id="btn-reset" style="width: 100%; margin-top: 12px;">Сбросить</button>
+      <p class="label" id="reset-status" style="margin-top: 12px;"></p>
     </div>
 
     <div class="admin-card">
@@ -89,6 +103,42 @@
           correctLevel: QRCode.CorrectLevel.M
         });
       }
+
+      var btn = document.getElementById("btn-reset");
+      var status = document.getElementById("reset-status");
+      btn.addEventListener("click", function () {
+        var password = (document.getElementById("reset-password").value || "").trim();
+        if (!password) {
+          status.textContent = "Введи пароль.";
+          return;
+        }
+        btn.disabled = true;
+        status.textContent = "Сбрасываю…";
+        fetch("/api/v1/admin/invite/reset", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: password })
+        }).then(function (res) {
+          return res.json().then(function (data) {
+            return { ok: res.ok, data: data };
+          });
+        }).then(function (r) {
+          if (!r.ok) {
+            status.textContent = (r.data && r.data.error) ? r.data.error : "ошибка";
+            btn.disabled = false;
+            return;
+          }
+          status.textContent =
+            "ok · sessions " + r.data.sessions_deleted +
+            " · events " + r.data.events_deleted +
+            " · rsvp " + r.data.rsvp_deleted;
+          setTimeout(function () { location.reload(); }, 800);
+        }).catch(function () {
+          status.textContent = "сеть / ошибка";
+          btn.disabled = false;
+        });
+      });
     })();
   </script>
 </body>

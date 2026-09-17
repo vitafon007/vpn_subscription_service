@@ -44,7 +44,7 @@
       {{end}}
     </div>
 
-    <section id="ask-block" class="section">
+    <section id="ask-block" class="section{{if .ExistingRSVP}} hidden{{end}}">
       <p class="display" style="font-size: 1.55rem; margin: 0 0 18px;">Пойдёшь со мной?</p>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="btn-yes">Да</button>
@@ -53,8 +53,9 @@
       <p class="label" style="margin-top: 16px;">smart casual · без повода нервничать</p>
     </section>
 
-    <section id="no-block" class="section hidden">
-      <p class="display" style="font-size: 1.7rem; margin: 0;">Ок. Без драмы.</p>
+    <section id="no-block" class="section{{if and .ExistingRSVP (eq .ExistingRSVP.Answer "no")}}{{else}} hidden{{end}}">
+      <p class="display" style="font-size: 1.7rem; margin: 0 0 18px;">Ок. Без драмы.</p>
+      <button type="button" class="btn btn-ghost" id="btn-edit-no" style="width: 100%;">Изменить</button>
     </section>
 
     <section id="form-block" class="section hidden">
@@ -124,10 +125,11 @@
       <button type="button" class="btn btn-primary" id="btn-submit" style="width: 100%; margin-top: 22px;">Отправить</button>
     </section>
 
-    <section id="done-block" class="section hidden">
+    <section id="done-block" class="section{{if and .ExistingRSVP (eq .ExistingRSVP.Answer "yes")}}{{else}} hidden{{end}}">
       <p class="display" style="font-size: 1.7rem; margin: 0 0 14px;">Принял. Напишу в день.</p>
       <div class="receipt" id="receipt"></div>
       <a class="btn btn-ghost" id="btn-calendar" href="/invite/api/calendar.ics" style="display: block; text-align: center; text-decoration: none; margin-top: 16px;">В календарь</a>
+      <button type="button" class="btn btn-ghost" id="btn-edit-yes" style="width: 100%; margin-top: 10px;">Изменить</button>
     </section>
   </main>
 
@@ -135,7 +137,8 @@
     window.__INVITE__ = {
       variant: "card",
       hasVideo: {{.HasVideo}},
-      showTitleCard: {{.ShowTitleCard}}
+      showTitleCard: {{.ShowTitleCard}},
+      existing: {{.ExistingJSON}}
     };
   </script>
   <script src="/invite/static/invite.js"></script>
@@ -184,22 +187,66 @@
       InviteApp.setupChips(document.getElementById("chips-vibe"), 2);
       InviteApp.setupChips(document.getElementById("chips-food"), 2);
 
-      var formStarted = false;
-      document.getElementById("btn-yes").addEventListener("click", function () {
+      function openForm(prefill) {
         InviteApp.hide(document.getElementById("ask-block"));
+        InviteApp.hide(document.getElementById("no-block"));
+        InviteApp.hide(document.getElementById("done-block"));
         InviteApp.show(document.getElementById("form-block"));
+        if (prefill) InviteApp.applyRSVPToForm(prefill);
+        document.getElementById("btn-submit").disabled = false;
+      }
+
+      function showDone(data) {
+        InviteApp.renderReceipt(document.getElementById("receipt"), data);
+        InviteApp.hide(document.getElementById("ask-block"));
+        InviteApp.hide(document.getElementById("form-block"));
+        InviteApp.hide(document.getElementById("no-block"));
+        InviteApp.show(document.getElementById("done-block"));
+      }
+
+      function showNo() {
+        InviteApp.hide(document.getElementById("ask-block"));
+        InviteApp.hide(document.getElementById("form-block"));
+        InviteApp.hide(document.getElementById("done-block"));
+        InviteApp.show(document.getElementById("no-block"));
+      }
+
+      var formStarted = false;
+      var existing = window.__INVITE__.existing;
+      if (existing && existing.answer === "yes") {
+        InviteApp.applyRSVPToForm(existing);
+        showDone(existing);
+      } else if (existing && existing.answer === "no") {
+        showNo();
+      }
+
+      document.getElementById("btn-yes").addEventListener("click", function () {
+        openForm(existing && existing.answer === "yes" ? existing : null);
         if (!formStarted) {
           formStarted = true;
           InviteApp.track("form_start", {});
         }
       });
 
+      document.getElementById("btn-edit-yes").addEventListener("click", function () {
+        openForm(existing || window.__LAST_RSVP__ || null);
+        if (!formStarted) {
+          formStarted = true;
+          InviteApp.track("form_start", { edit: true });
+        }
+      });
+
+      document.getElementById("btn-edit-no").addEventListener("click", function () {
+        InviteApp.hide(document.getElementById("no-block"));
+        InviteApp.show(document.getElementById("ask-block"));
+      });
+
       document.getElementById("btn-no").addEventListener("click", function () {
         InviteApp.postJSON("/invite/api/rsvp", { answer: "no" }).then(function (res) {
           if (!res || !res.ok) return;
-          InviteApp.hide(document.getElementById("ask-block"));
-          InviteApp.hide(document.getElementById("form-block"));
-          InviteApp.show(document.getElementById("no-block"));
+          existing = { answer: "no" };
+          window.__INVITE__.existing = existing;
+          showNo();
         }).catch(function () {});
       });
 
@@ -221,18 +268,10 @@
             return;
           }
           return res.json().then(function (data) {
-            var receipt = document.getElementById("receipt");
-            receipt.innerHTML =
-              "<dl>" +
-              "<dt>Дата</dt><dd>" + (data.date_pref || "—") + "</dd>" +
-              "<dt>Время</dt><dd>" + (data.time_pref || "—") + "</dd>" +
-              "<dt>Вайб</dt><dd>" + ((data.vibe && data.vibe.length) ? data.vibe.join(", ") : "—") + "</dd>" +
-              "<dt>Еда</dt><dd>" + ((data.food && data.food.length) ? data.food.join(", ") : "—") + "</dd>" +
-              "<dt>Встреча</dt><dd>" + (data.meet || "—") + "</dd>" +
-              (data.notes ? "<dt>Заметка</dt><dd>" + data.notes + "</dd>" : "") +
-              "</dl>";
-            InviteApp.hide(document.getElementById("form-block"));
-            InviteApp.show(document.getElementById("done-block"));
+            existing = data;
+            window.__INVITE__.existing = data;
+            window.__LAST_RSVP__ = data;
+            showDone(data);
           });
         }).catch(function () {
           btn.disabled = false;

@@ -47,21 +47,21 @@ type InviteRSVPResponse struct {
 
 // InviteAdminStats — сводка для секретной админ-страницы.
 type InviteAdminStats struct {
-	CountdownOpens   int64          `json:"countdown_opens"`
-	CardOpens        int64          `json:"card_opens"`
-	HeartbeatCount   int64          `json:"heartbeat_count"`
-	HeartbeatMinutes float64        `json:"heartbeat_minutes"`
-	NearReveal       bool           `json:"near_reveal"`
-	GateOpens        int64          `json:"gate_opens"`
-	Sessions         int64          `json:"sessions"`
-	RSVP             *InviteRSVPDTO `json:"rsvp,omitempty"`
-	Events           []InviteEvent  `json:"events"`
-	GateURL          string         `json:"gate_url"`
-	PageURL          string         `json:"page_url"`
-	RevealAt         string         `json:"reveal_at"`
-	Timezone         string         `json:"timezone"`
-	Now              string         `json:"now"`
-	Revealed         bool           `json:"revealed"`
+	CountdownOpens   int64           `json:"countdown_opens"`
+	CardOpens        int64           `json:"card_opens"`
+	HeartbeatCount   int64           `json:"heartbeat_count"`
+	HeartbeatMinutes float64         `json:"heartbeat_minutes"`
+	NearReveal       bool            `json:"near_reveal"`
+	GateOpens        int64           `json:"gate_opens"`
+	Sessions         int64           `json:"sessions"`
+	RSVPs            []InviteRSVPDTO `json:"rsvps"`
+	Events           []InviteEvent   `json:"events"`
+	GateURL          string          `json:"gate_url"`
+	PageURL          string          `json:"page_url"`
+	RevealAt         string          `json:"reveal_at"`
+	Timezone         string          `json:"timezone"`
+	Now              string          `json:"now"`
+	Revealed         bool            `json:"revealed"`
 }
 
 // InviteRSVPDTO — RSVP в админ-сводке.

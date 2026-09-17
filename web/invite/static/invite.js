@@ -132,6 +132,59 @@
     if (el) el.classList.add("hidden");
   }
 
+  function escapeHTML(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function renderReceipt(el, data) {
+    if (!el || !data) return;
+    el.innerHTML =
+      "<dl>" +
+      "<dt>Дата</dt><dd>" + escapeHTML(data.date_pref || "—") + "</dd>" +
+      "<dt>Время</dt><dd>" + escapeHTML(data.time_pref || "—") + "</dd>" +
+      "<dt>Вайб</dt><dd>" + escapeHTML((data.vibe && data.vibe.length) ? data.vibe.join(", ") : "—") + "</dd>" +
+      "<dt>Еда</dt><dd>" + escapeHTML((data.food && data.food.length) ? data.food.join(", ") : "—") + "</dd>" +
+      "<dt>Встреча</dt><dd>" + escapeHTML(data.meet || "—") + "</dd>" +
+      (data.notes ? "<dt>Заметка</dt><dd>" + escapeHTML(data.notes) + "</dd>" : "") +
+      "</dl>";
+  }
+
+  function selectChips(root, values) {
+    if (!root) return;
+    var set = {};
+    (values || []).forEach(function (v) {
+      set[String(v)] = true;
+    });
+    Array.prototype.forEach.call(root.querySelectorAll(".chip"), function (el) {
+      var val = el.getAttribute("data-value");
+      if (set[val]) el.classList.add("active");
+      else el.classList.remove("active");
+    });
+  }
+
+  function selectSingle(root, value) {
+    if (!root) return;
+    Array.prototype.forEach.call(root.querySelectorAll(".chip"), function (el) {
+      if (el.getAttribute("data-value") === value) el.classList.add("active");
+      else el.classList.remove("active");
+    });
+  }
+
+  function applyRSVPToForm(data) {
+    if (!data) return;
+    selectSingle(document.getElementById("chips-date"), data.date_pref || "");
+    selectSingle(document.getElementById("chips-time"), data.time_pref || "");
+    selectSingle(document.getElementById("chips-meet"), data.meet || "");
+    selectChips(document.getElementById("chips-vibe"), data.vibe || []);
+    selectChips(document.getElementById("chips-food"), data.food || []);
+    var notes = document.getElementById("notes");
+    if (notes) notes.value = data.notes || "";
+  }
+
   window.InviteApp = {
     track: track,
     startHeartbeat: startHeartbeat,
@@ -140,6 +193,10 @@
     setupSingleSelect: setupSingleSelect,
     selectedChips: selectedChips,
     selectedSingle: selectedSingle,
+    selectChips: selectChips,
+    selectSingle: selectSingle,
+    applyRSVPToForm: applyRSVPToForm,
+    renderReceipt: renderReceipt,
     show: show,
     hide: hide,
     postJSON: postJSON,

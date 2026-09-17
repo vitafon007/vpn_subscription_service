@@ -289,6 +289,7 @@ func (s *InviteService) AdminStats(ctx context.Context) (model.InviteAdminStats,
 		NearReveal:       nearCount > 0,
 		GateOpens:        gateOpens,
 		Sessions:         sessions,
+		RSVPs:            []model.InviteRSVPDTO{},
 		Events:           outEvents,
 		GateURL:          fmt.Sprintf("%s/%s", s.cfg.PublicBaseURL, s.cfg.InviteGateUID),
 		PageURL:          fmt.Sprintf("%s/%s", s.cfg.PublicBaseURL, s.cfg.InvitePageUID),
@@ -298,8 +299,12 @@ func (s *InviteService) AdminStats(ctx context.Context) (model.InviteAdminStats,
 		Revealed:         revealed,
 	}
 
-	if rsvp, err := s.dao.LatestRSVP(ctx); err == nil {
-		stats.RSVP = &model.InviteRSVPDTO{
+	rsvps, err := s.dao.ListRSVP(ctx, 100)
+	if err != nil {
+		return model.InviteAdminStats{}, err
+	}
+	for _, rsvp := range rsvps {
+		stats.RSVPs = append(stats.RSVPs, model.InviteRSVPDTO{
 			SessionID: rsvp.SessionID,
 			Answer:    rsvp.Answer,
 			DatePref:  rsvp.DatePref,
@@ -310,9 +315,7 @@ func (s *InviteService) AdminStats(ctx context.Context) (model.InviteAdminStats,
 			Notes:     rsvp.Notes,
 			CreatedAt: rsvp.CreatedAt.In(loc),
 			UpdatedAt: rsvp.UpdatedAt.In(loc),
-		}
-	} else if !errors.Is(err, dao.ErrNotFound) {
-		return model.InviteAdminStats{}, err
+		})
 	}
 
 	return stats, nil

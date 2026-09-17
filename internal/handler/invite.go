@@ -2,6 +2,7 @@ package handler
 
 import (
 	"crypto/subtle"
+	"encoding/json"
 	"errors"
 	"html/template"
 	"io/fs"
@@ -99,7 +100,8 @@ func (h *InviteHandler) Page(c *gin.Context) {
 		return
 	}
 	h.setQuietHeaders(c)
-	if _, err := h.ensureSession(c); err != nil {
+	sid, err := h.ensureSession(c)
+	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return
 	}
@@ -129,13 +131,39 @@ func (h *InviteHandler) Page(c *gin.Context) {
 	if st, err := os.Stat(cfg.InviteVideoPath); err == nil && !st.IsDir() && st.Size() > 0 {
 		hasVideo = true
 	}
-	// Title card только при первом показе в сессии браузера — через query ?t=1 или всегда;
-	// по плану: показываем title card; клиент уберёт при reduced-motion.
-	showTitle := c.Query("skip_title") != "1"
+
+	var existing *model.InviteRSVPResponse
+	existingJSON := template.JS("null")
+	if rsvp, err := h.svc.GetRSVPForSession(c.Request.Context(), sid); err == nil {
+		existing = &model.InviteRSVPResponse{
+			Answer:    rsvp.Answer,
+			DatePref:  rsvp.DatePref,
+			TimePref:  rsvp.TimePref,
+			Vibe:      rsvp.Vibe,
+			Food:      rsvp.Food,
+			Meet:      rsvp.Meet,
+			Notes:     rsvp.Notes,
+			UpdatedAt: rsvp.UpdatedAt,
+		}
+		raw, err := json.Marshal(existing)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+		existingJSON = template.JS(raw)
+	} else if !errors.Is(err, dao.ErrNotFound) {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	// Title card только если ответа ещё нет (и не skip_title).
+	showTitle := existing == nil && c.Query("skip_title") != "1"
 	data := map[string]any{
 		"HasVideo":      hasVideo,
 		"ShowTitleCard": showTitle,
 		"VideoURL":      "/" + cfg.InvitePageUID + "/media/card.mp4",
+		"ExistingRSVP":  existing,
+		"ExistingJSON":  existingJSON,
 	}
 	c.Status(http.StatusOK)
 	c.Header("Content-Type", "text/html; charset=utf-8")
