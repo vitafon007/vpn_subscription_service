@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0E0D0B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta property="og:title" content="Note">
+  <meta property="og:description" content="">
+  <title>Note</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300;1,400&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/invite/static/invite.css">
+</head>
+<body class="grain vignette">
+  <main class="shell fade-in">
+    <p class="label">Саратов · 25.09 · 20:00</p>
+    <h1 class="display" style="font-size: clamp(2.4rem, 11vw, 3.2rem); margin: 28px 0 10px;">Вероника.</h1>
+    <p style="margin: 0; color: var(--muted); font-size: 1.05rem; line-height: 1.55;">Есть повод подождать.</p>
+
+    <div class="countdown-grid" aria-live="polite">
+      <div class="countdown-cell">
+        <div class="countdown-num" id="cd-days">00</div>
+        <div class="countdown-unit">дни</div>
+      </div>
+      <div class="countdown-cell">
+        <div class="countdown-num" id="cd-hours">00</div>
+        <div class="countdown-unit">часы</div>
+      </div>
+      <div class="countdown-cell">
+        <div class="countdown-num" id="cd-mins">00</div>
+        <div class="countdown-unit">мин</div>
+      </div>
+      <div class="countdown-cell">
+        <div class="countdown-num" id="cd-secs">00</div>
+        <div class="countdown-unit">сек</div>
+      </div>
+    </div>
+
+    <p class="label" style="margin-top: auto;">Не закрывай. Скоро.</p>
+  </main>
+
+  <script>
+    window.__INVITE__ = {
+      variant: "countdown",
+      revealUnix: {{.RevealUnix}},
+      serverUnix: {{.ServerUnix}}
+    };
+  </script>
+  <script src="/invite/static/invite.js"></script>
+  <script>
+    InviteApp.track("page_open", { variant: "countdown" });
+    InviteApp.startHeartbeat("countdown");
+    InviteApp.syncCountdown(window.__INVITE__.revealUnix, window.__INVITE__.serverUnix);
+  </script>
+</body>
+</html>

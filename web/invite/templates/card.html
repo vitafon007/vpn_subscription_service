@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0E0D0B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta property="og:title" content="Note">
+  <meta property="og:description" content="">
+  <title>Note</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300;1,400&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/invite/static/invite.css">
+</head>
+<body class="grain vignette">
+  {{if .ShowTitleCard}}
+  <div class="title-card" id="title-card" aria-hidden="true">
+    <span>25.09 · Саратов</span>
+  </div>
+  {{end}}
+
+  <main class="shell fade-in" id="main">
+    <p class="label">Для тебя</p>
+    <h1 class="display" style="font-size: clamp(2rem, 9vw, 2.7rem); margin: 18px 0 6px;">Пятница уже была.</h1>
+    <p style="margin: 0 0 8px; color: var(--muted); line-height: 1.5;">Давай сделаем вечер.</p>
+
+    <div class="video-wrap" id="video-wrap">
+      {{if .HasVideo}}
+      <video id="card-video" playsinline preload="metadata" poster="" src="{{.VideoURL}}"></video>
+      <div class="video-fade"></div>
+      <button type="button" class="play-btn" id="play-btn" aria-label="Смотреть">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      {{else}}
+      <div class="poster-fallback">
+        <div>
+          <p class="display" style="font-size: 1.6rem; margin: 0 0 8px;">Открытка уже здесь.</p>
+          <p class="label">видео появится чуть позже</p>
+        </div>
+      </div>
+      {{end}}
+    </div>
+
+    <section id="ask-block" class="section">
+      <p class="display" style="font-size: 1.55rem; margin: 0 0 18px;">Пойдёшь со мной?</p>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" id="btn-yes">Да</button>
+        <button type="button" class="btn btn-ghost" id="btn-no">Не в этот раз</button>
+      </div>
+      <p class="label" style="margin-top: 16px;">smart casual · без повода нервничать</p>
+    </section>
+
+    <section id="no-block" class="section hidden">
+      <p class="display" style="font-size: 1.7rem; margin: 0;">Ок. Без драмы.</p>
+    </section>
+
+    <section id="form-block" class="section hidden">
+      <p class="label">Когда</p>
+      <div class="chips section" id="chips-date" style="margin-top: 10px;">
+        <button type="button" class="chip" data-value="сб 26.09">сб 26.09</button>
+        <button type="button" class="chip" data-value="вс 27.09">вс 27.09</button>
+        <button type="button" class="chip" data-value="пт 02.10">пт 02.10</button>
+        <button type="button" class="chip" data-value="сб 03.10">сб 03.10</button>
+        <button type="button" class="chip" data-value="вс 04.10">вс 04.10</button>
+        <button type="button" class="chip" data-value="другая дата">другая дата</button>
+      </div>
+
+      <div class="section">
+        <p class="label">Во сколько</p>
+        <div class="chips" id="chips-time" style="margin-top: 10px;">
+          <button type="button" class="chip" data-value="17:00">17:00</button>
+          <button type="button" class="chip" data-value="18:00">18:00</button>
+          <button type="button" class="chip" data-value="19:00">19:00</button>
+          <button type="button" class="chip" data-value="20:00">20:00</button>
+          <button type="button" class="chip" data-value="21:00">21:00</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <p class="label">Вайб · до 2</p>
+        <div class="chips" id="chips-vibe" style="margin-top: 10px;">
+          <button type="button" class="chip" data-value="активный">активный</button>
+          <button type="button" class="chip" data-value="релакс">релакс</button>
+          <button type="button" class="chip" data-value="тет-а-тет">тет-а-тет</button>
+          <button type="button" class="chip" data-value="бар">бар</button>
+          <button type="button" class="chip" data-value="прогулка">прогулка</button>
+          <button type="button" class="chip" data-value="кино">кино</button>
+          <button type="button" class="chip" data-value="кафе">кафе</button>
+          <button type="button" class="chip" data-value="сюрприз">сюрприз</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <p class="label">Еда · до 2</p>
+        <div class="chips" id="chips-food" style="margin-top: 10px;">
+          <button type="button" class="chip" data-value="роллы">роллы</button>
+          <button type="button" class="chip" data-value="пицца">пицца</button>
+          <button type="button" class="chip" data-value="паста">паста</button>
+          <button type="button" class="chip" data-value="грузинская">грузинская</button>
+          <button type="button" class="chip" data-value="шашлык">шашлык</button>
+          <button type="button" class="chip" data-value="десерт">десерт</button>
+          <button type="button" class="chip" data-value="на твой вкус">на твой вкус</button>
+          <button type="button" class="chip" data-value="сюрприз">сюрприз</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <p class="label">Как встретимся</p>
+        <div class="chips" id="chips-meet" style="margin-top: 10px;">
+          <button type="button" class="chip" data-value="я доеду">я доеду</button>
+          <button type="button" class="chip" data-value="забери">забери</button>
+          <button type="button" class="chip" data-value="решим на месте">решим на месте</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <p class="label">Что не ем / как удобнее</p>
+        <textarea class="field" id="notes" style="margin-top: 10px;" maxlength="500" placeholder="по желанию"></textarea>
+      </div>
+
+      <button type="button" class="btn btn-primary" id="btn-submit" style="width: 100%; margin-top: 22px;">Отправить</button>
+    </section>
+
+    <section id="done-block" class="section hidden">
+      <p class="display" style="font-size: 1.7rem; margin: 0 0 14px;">Принял. Напишу в день.</p>
+      <div class="receipt" id="receipt"></div>
+      <a class="btn btn-ghost" id="btn-calendar" href="/invite/api/calendar.ics" style="display: block; text-align: center; text-decoration: none; margin-top: 16px;">В календарь</a>
+    </section>
+  </main>
+
+  <script>
+    window.__INVITE__ = {
+      variant: "card",
+      hasVideo: {{.HasVideo}},
+      showTitleCard: {{.ShowTitleCard}}
+    };
+  </script>
+  <script src="/invite/static/invite.js"></script>
+  <script>
+    (function () {
+      InviteApp.track("page_open", { variant: "card" });
+      InviteApp.startHeartbeat("card");
+      if (window.__INVITE__.showTitleCard) {
+        InviteApp.track("title_card_shown", {});
+        var prefersReduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (prefersReduce) {
+          var tc = document.getElementById("title-card");
+          if (tc) tc.remove();
+        }
+      }
+
+      var video = document.getElementById("card-video");
+      var playBtn = document.getElementById("play-btn");
+      var progressMarks = { 25: false, 50: false, 75: false, 100: false };
+
+      if (video && playBtn) {
+        playBtn.addEventListener("click", function () {
+          video.setAttribute("controls", "controls");
+          video.play().catch(function () {});
+          InviteApp.hide(playBtn);
+          InviteApp.track("video_play", {});
+        });
+        video.addEventListener("ended", function () {
+          InviteApp.track("video_ended", {});
+        });
+        video.addEventListener("timeupdate", function () {
+          if (!video.duration) return;
+          var p = (video.currentTime / video.duration) * 100;
+          [25, 50, 75, 100].forEach(function (mark) {
+            if (!progressMarks[mark] && p >= mark) {
+              progressMarks[mark] = true;
+              InviteApp.track("video_progress", { percent: mark });
+            }
+          });
+        });
+      }
+
+      InviteApp.setupSingleSelect(document.getElementById("chips-date"));
+      InviteApp.setupSingleSelect(document.getElementById("chips-time"));
+      InviteApp.setupSingleSelect(document.getElementById("chips-meet"));
+      InviteApp.setupChips(document.getElementById("chips-vibe"), 2);
+      InviteApp.setupChips(document.getElementById("chips-food"), 2);
+
+      var formStarted = false;
+      document.getElementById("btn-yes").addEventListener("click", function () {
+        InviteApp.hide(document.getElementById("ask-block"));
+        InviteApp.show(document.getElementById("form-block"));
+        if (!formStarted) {
+          formStarted = true;
+          InviteApp.track("form_start", {});
+        }
+      });
+
+      document.getElementById("btn-no").addEventListener("click", function () {
+        InviteApp.postJSON("/invite/api/rsvp", { answer: "no" }).then(function (res) {
+          if (!res || !res.ok) return;
+          InviteApp.hide(document.getElementById("ask-block"));
+          InviteApp.hide(document.getElementById("form-block"));
+          InviteApp.show(document.getElementById("no-block"));
+        }).catch(function () {});
+      });
+
+      document.getElementById("btn-submit").addEventListener("click", function () {
+        var payload = {
+          answer: "yes",
+          date_pref: InviteApp.selectedSingle(document.getElementById("chips-date")),
+          time_pref: InviteApp.selectedSingle(document.getElementById("chips-time")),
+          vibe: InviteApp.selectedChips(document.getElementById("chips-vibe")),
+          food: InviteApp.selectedChips(document.getElementById("chips-food")),
+          meet: InviteApp.selectedSingle(document.getElementById("chips-meet")),
+          notes: (document.getElementById("notes").value || "").trim()
+        };
+        var btn = document.getElementById("btn-submit");
+        btn.disabled = true;
+        InviteApp.postJSON("/invite/api/rsvp", payload).then(function (res) {
+          if (!res || !res.ok) {
+            btn.disabled = false;
+            return;
+          }
+          return res.json().then(function (data) {
+            var receipt = document.getElementById("receipt");
+            receipt.innerHTML =
+              "<dl>" +
+              "<dt>Дата</dt><dd>" + (data.date_pref || "—") + "</dd>" +
+              "<dt>Время</dt><dd>" + (data.time_pref || "—") + "</dd>" +
+              "<dt>Вайб</dt><dd>" + ((data.vibe && data.vibe.length) ? data.vibe.join(", ") : "—") + "</dd>" +
+              "<dt>Еда</dt><dd>" + ((data.food && data.food.length) ? data.food.join(", ") : "—") + "</dd>" +
+              "<dt>Встреча</dt><dd>" + (data.meet || "—") + "</dd>" +
+              (data.notes ? "<dt>Заметка</dt><dd>" + data.notes + "</dd>" : "") +
+              "</dl>";
+            InviteApp.hide(document.getElementById("form-block"));
+            InviteApp.show(document.getElementById("done-block"));
+          });
+        }).catch(function () {
+          btn.disabled = false;
+        });
+      });
+
+      document.getElementById("btn-calendar").addEventListener("click", function () {
+        InviteApp.track("calendar_added", {});
+      });
+    })();
+  </script>
+</body>
+</html>

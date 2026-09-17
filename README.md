@@ -65,8 +65,25 @@ Swagger UI: http://127.0.0.1:23452/swagger/index.html
 | `PUBLIC_BASE_URL` | `http://127.0.0.1:23452` | база для `subscription_url` |
 | `XUI_DOCKER_NETWORK` | `3xui_default` | внешняя docker-сеть 3x-ui |
 | `IMAGE` | `vpn_subscription_service:latest` | образ compose |
+| `INVITE_GATE_UID` | *(пусто)* | секретный UID QR-входа; пустой = лендинг выключен |
+| `INVITE_PAGE_UID` | *(пусто)* | UID countdown/открытки |
+| `INVITE_ADMIN_UID` | *(пусто)* | UID админ-таймлайна |
+| `INVITE_TZ` | `Europe/Saratov` | timezone reveal |
+| `INVITE_REVEAL_AT` | `2026-09-25T20:00:00` | локальное время открытия открытки |
+| `INVITE_VIDEO_PATH` | `/data/invite/card.mp4` | путь к mp4 в контейнере |
 
 Если `XUI_*` не заданы, `/health` и `/ready` работают, а bind/sub отвечают **503**.
+
+## Secret invite landing
+
+Опциональный мобильный лендинг-приглашение. Включается, когда заданы все три `INVITE_*_UID`.
+
+- QR → `/{INVITE_GATE_UID}` → 302 на `/{INVITE_PAGE_UID}`
+- до `INVITE_REVEAL_AT` (Саратов) — countdown; после — открытка + RSVP
+- админка: `/{INVITE_ADMIN_UID}`
+- видео: положите `card.mp4` в `deploy/invite-media/` (volume, без пересборки образа)
+
+Боевые UID держите только в `.env` на сервере.
 
 ## Docker Compose и сеть с 3x-ui
 

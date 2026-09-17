@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0E0D0B">
+  <title>Invite admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,300&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/invite/static/invite.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="grain">
+  <main class="shell">
+    <p class="label">Invite · admin</p>
+    <h1 class="display" style="font-size: 2rem; margin: 12px 0 6px;">Таймлайн</h1>
+    <p style="margin: 0 0 18px; color: var(--muted); font-size: 0.9rem;">
+      {{.Now}} · reveal {{.RevealAt}} · {{if .Revealed}}открыто{{else}}ожидание{{end}}
+    </p>
+
+    <div class="admin-card">
+      <h3>Метрики</h3>
+      <div class="admin-metrics">
+        <div class="metric"><strong>{{.Sessions}}</strong><span>сессии</span></div>
+        <div class="metric"><strong>{{.GateOpens}}</strong><span>gate open</span></div>
+        <div class="metric"><strong>{{.CountdownOpens}}</strong><span>countdown</span></div>
+        <div class="metric"><strong>{{.CardOpens}}</strong><span>открытка</span></div>
+        <div class="metric"><strong>{{printf "%.1f" .HeartbeatMinutes}}</strong><span>мин heartbeat</span></div>
+        <div class="metric"><strong>{{if .NearReveal}}да{{else}}нет{{end}}</strong><span>за 30 мин до 20:00</span></div>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h3>RSVP</h3>
+      {{if .RSVP}}
+      <p style="margin: 0 0 8px; font-size: 1.2rem;">
+        Ответ: <strong style="color: var(--champagne);">{{.RSVP.Answer}}</strong>
+      </p>
+      <dl class="receipt" style="border: 0; padding: 0; background: transparent;">
+        <dt>Дата</dt><dd>{{.RSVP.DatePref}}</dd>
+        <dt>Время</dt><dd>{{.RSVP.TimePref}}</dd>
+        <dt>Вайб</dt><dd>{{range $i, $v := .RSVP.Vibe}}{{if $i}}, {{end}}{{$v}}{{else}}—{{end}}</dd>
+        <dt>Еда</dt><dd>{{range $i, $v := .RSVP.Food}}{{if $i}}, {{end}}{{$v}}{{else}}—{{end}}</dd>
+        <dt>Встреча</dt><dd>{{if .RSVP.Meet}}{{.RSVP.Meet}}{{else}}—{{end}}</dd>
+        <dt>Заметка</dt><dd>{{if .RSVP.Notes}}{{.RSVP.Notes}}{{else}}—{{end}}</dd>
+        <dt>Обновлено</dt><dd>{{.RSVP.UpdatedAt.Format "02.01 15:04"}}</dd>
+      </dl>
+      {{else}}
+      <p style="margin: 0; color: var(--muted);">Пока нет ответа.</p>
+      {{end}}
+    </div>
+
+    <div class="admin-card">
+      <h3>QR для цветов</h3>
+      <div class="qr-box"><div id="qr"></div></div>
+      <p class="url-copy" id="gate-url">{{.GateURL}}</p>
+      <p class="label" style="margin-top: 10px;">page: {{.PageURL}}</p>
+    </div>
+
+    <div class="admin-card">
+      <h3>События</h3>
+      <ul class="event-list">
+        {{range .Events}}
+        <li>
+          <time>{{.CreatedAt.Format "02.01 15:04:05"}}{{if ge (len .SessionID) 8}} · {{printf "%.8s" .SessionID}}{{end}}</time>
+          <strong>{{.Type}}</strong>
+          {{if .Payload}}
+          <span style="color: var(--muted);"> · {{printf "%v" .Payload}}</span>
+          {{end}}
+        </li>
+        {{else}}
+        <li style="color: var(--muted);">Пусто.</li>
+        {{end}}
+      </ul>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var url = {{printf "%q" .GateURL}};
+      if (window.QRCode) {
+        new QRCode(document.getElementById("qr"), {
+          text: url,
+          width: 220,
+          height: 220,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

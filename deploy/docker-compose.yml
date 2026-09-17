@@ -32,6 +32,15 @@ services:
       XUI_API_TOKEN: ${XUI_API_TOKEN:-}
       XUI_INSECURE_SKIP_VERIFY: ${XUI_INSECURE_SKIP_VERIFY:-true}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:23452}
+      TZ: ${TZ:-Europe/Saratov}
+      INVITE_GATE_UID: ${INVITE_GATE_UID:-}
+      INVITE_PAGE_UID: ${INVITE_PAGE_UID:-}
+      INVITE_ADMIN_UID: ${INVITE_ADMIN_UID:-}
+      INVITE_TZ: ${INVITE_TZ:-Europe/Saratov}
+      INVITE_REVEAL_AT: ${INVITE_REVEAL_AT:-2026-09-25T20:00:00}
+      INVITE_VIDEO_PATH: ${INVITE_VIDEO_PATH:-/data/invite/card.mp4}
+    volumes:
+      - ./invite-media:/data/invite:ro
     depends_on:
       postgres:
         condition: service_healthy

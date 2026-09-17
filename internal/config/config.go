@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Config содержит настройки приложения, читаемые из окружения.
@@ -25,6 +26,19 @@ type Config struct {
 	XUIInsecureSkipVerify bool
 	// PublicBaseURL — публичный базовый URL сервиса для subscription_url.
 	PublicBaseURL string
+
+	// InviteGateUID — секретный путь QR-входа (только редирект).
+	InviteGateUID string
+	// InvitePageUID — секретный путь countdown/открытки.
+	InvitePageUID string
+	// InviteAdminUID — секретный путь админ-таймлайна.
+	InviteAdminUID string
+	// InviteTZ — IANA timezone для reveal (по умолчанию Europe/Saratov).
+	InviteTZ string
+	// InviteRevealAt — локальное время открытия открытки в InviteTZ (RFC3339 без зоны или дата+время).
+	InviteRevealAt string
+	// InviteVideoPath — путь к mp4 на диске контейнера.
+	InviteVideoPath string
 }
 
 // Load читает конфигурацию из переменных окружения и применяет значения по умолчанию.
@@ -38,12 +52,49 @@ func Load() Config {
 		XUIAPIToken:           env("XUI_API_TOKEN", ""),
 		XUIInsecureSkipVerify: envBool("XUI_INSECURE_SKIP_VERIFY", false),
 		PublicBaseURL:         strings.TrimRight(env("PUBLIC_BASE_URL", "http://127.0.0.1:23452"), "/"),
+		InviteGateUID:         env("INVITE_GATE_UID", ""),
+		InvitePageUID:         env("INVITE_PAGE_UID", ""),
+		InviteAdminUID:        env("INVITE_ADMIN_UID", ""),
+		InviteTZ:              env("INVITE_TZ", "Europe/Saratov"),
+		InviteRevealAt:        env("INVITE_REVEAL_AT", "2026-09-25T20:00:00"),
+		InviteVideoPath:       env("INVITE_VIDEO_PATH", "/data/invite/card.mp4"),
 	}
 }
 
 // XUIConfigured сообщает, заданы ли параметры доступа к 3x-ui.
 func (c Config) XUIConfigured() bool {
 	return c.XUIBaseURL != "" && c.XUIAPIToken != ""
+}
+
+// InviteEnabled — включён ли секретный лендинг (все три UID заданы).
+func (c Config) InviteEnabled() bool {
+	return c.InviteGateUID != "" && c.InvitePageUID != "" && c.InviteAdminUID != ""
+}
+
+// InviteSecureCookie — Secure-флаг cookie при https PUBLIC_BASE_URL.
+func (c Config) InviteSecureCookie() bool {
+	return strings.HasPrefix(strings.ToLower(c.PublicBaseURL), "https://")
+}
+
+// InviteRevealTime парсит момент открытия открытки в заданной TZ.
+func (c Config) InviteRevealTime() (time.Time, error) {
+	loc, err := time.LoadLocation(c.InviteTZ)
+	if err != nil {
+		return time.Time{}, err
+	}
+	raw := strings.TrimSpace(c.InviteRevealAt)
+	layouts := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+	}
+	for _, layout := range layouts {
+		if t, err := time.ParseInLocation(layout, raw, loc); err == nil {
+			return t, nil
+		}
+	}
+	// Fallback: 25 Sep 2026 20:00 Саратов.
+	return time.Date(2026, 9, 25, 20, 0, 0, 0, loc), nil
 }
 
 func env(key, fallback string) string {

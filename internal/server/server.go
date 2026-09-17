@@ -2,6 +2,9 @@
 package server
 
 import (
+	"log"
+	"net/http"
+
 	"github.com/chistotel/vpn_subscription_service/internal/config"
 	"github.com/chistotel/vpn_subscription_service/internal/dao"
 	"github.com/chistotel/vpn_subscription_service/internal/handler"
@@ -59,6 +62,30 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool) *gin.Engine {
 	}
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	if cfg.InviteEnabled() {
+		inviteDAO := dao.NewInviteDAO(pool)
+		inviteSvc := service.NewInviteService(inviteDAO, cfg)
+		inviteHandler, err := handler.NewInviteHandler(inviteSvc)
+		if err != nil {
+			log.Fatalf("invite templates: %v", err)
+		}
+
+		r.StaticFS("/invite/static", inviteHandler.StaticFS())
+		r.POST("/invite/api/events", inviteHandler.PostEvent)
+		r.POST("/invite/api/rsvp", inviteHandler.PostRSVP)
+		r.GET("/invite/api/calendar.ics", inviteHandler.CalendarICS)
+
+		r.GET("/"+cfg.InviteGateUID, inviteHandler.Gate)
+		r.GET("/"+cfg.InvitePageUID, inviteHandler.Page)
+		r.GET("/"+cfg.InviteAdminUID, inviteHandler.AdminPage)
+		r.GET("/"+cfg.InvitePageUID+"/media/card.mp4", inviteHandler.ServeVideo)
+	} else {
+		// Заглушки, чтобы случайные /invite/* не светили структуру, если выключено.
+		r.Any("/invite/*path", func(c *gin.Context) {
+			c.Status(http.StatusNotFound)
+		})
+	}
 
 	return r
 }
